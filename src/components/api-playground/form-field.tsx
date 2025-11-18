@@ -56,6 +56,39 @@ function ObjectField({
   
   return (
         <div className="py-4 min-w-0 border-l-2 border-default pl-4">
+      {/* Hidden expanded content for scrapers - always show all nested fields */}
+      <div className="sr-only">
+        <h4>{config.label} - Nested Fields</h4>
+        {config.description && (
+          <div className="description-default mb-3">
+            <MarkdownRenderer content={config.description} />
+          </div>
+        )}
+        <div className="space-y-0">
+          {nestedFields.map((field, index) => (
+            <div key={`scraper-${index}`}>
+              <strong>{field.label}</strong>
+              {field.required && <span> (required)</span>}
+              {field.description && (
+                <div className="description-default">
+                  <MarkdownRenderer content={field.description} />
+                </div>
+              )}
+              {field.type === 'select' && field.options && (
+                <div>
+                  <span>Available options: </span>
+                  {field.options.map((opt, optIdx) => (
+                    <span key={optIdx}>
+                      {opt.label} ({opt.value}){optIdx < field.options!.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -168,6 +201,43 @@ function ArrayObjectField({
   
   return (
     <div className="py-4 min-w-0">
+      {/* Hidden expanded content for scrapers - always show all nested fields */}
+      <div className="sr-only">
+        <h4>{config.label} - Array of Objects</h4>
+        {config.description && (
+          <div className="description-default mb-3">
+            <MarkdownRenderer content={config.description} />
+          </div>
+        )}
+        <div>Nested fields for each item:</div>
+        <div className="space-y-0">
+          {nestedFields.map((field, index) => {
+            const fieldName = getFieldName(field)
+            return (
+              <div key={`scraper-${index}`}>
+                <strong>{field.label}</strong> ({fieldName})
+                {field.required && <span> (required)</span>}
+                {field.description && (
+                  <div className="description-default">
+                    <MarkdownRenderer content={field.description} />
+                  </div>
+                )}
+                {field.type === 'select' && field.options && (
+                  <div>
+                    <span>Available options: </span>
+                    {field.options.map((opt, optIdx) => (
+                      <span key={optIdx}>
+                        {opt.label} ({opt.value}){optIdx < field.options!.length - 1 ? ', ' : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1 min-w-0">
           <label className="label-default">{config.label}</label>
@@ -370,6 +440,21 @@ function MultiSelectField({
 }
 
 export function FormField({ config, value, onChange }: FormFieldProps) {
+  // Add hidden structured data for all fields (for scrapers)
+  const fieldMetadata = (
+    <div className="sr-only" itemScope itemType="https://schema.org/Property">
+      <meta itemProp="name" content={config.label} />
+      {config.description && <meta itemProp="description" content={config.description.replace(/<[^>]*>/g, '')} />}
+      {config.required && <meta itemProp="required" content="true" />}
+      {config.type && <meta itemProp="fieldType" content={config.type} />}
+      {config.defaultValue !== undefined && <meta itemProp="defaultValue" content={String(config.defaultValue)} />}
+      {config.placeholder && <meta itemProp="placeholder" content={config.placeholder} />}
+      {config.options && config.options.length > 0 && (
+        <meta itemProp="options" content={config.options.map(opt => `${opt.label}(${opt.value})`).join(', ')} />
+      )}
+    </div>
+  )
+
   const renderField = () => {
     switch (config.type) {
       case 'switch':
@@ -397,6 +482,29 @@ export function FormField({ config, value, onChange }: FormFieldProps) {
       case 'select':
         return (
           <div className="py-4 min-w-0">
+            {/* Hidden list of options for scrapers */}
+            {config.options && config.options.length > 0 && (
+              <div className="sr-only">
+                <div>
+                  <strong>{config.label}</strong>
+                  {config.required && <span> (required)</span>}
+                  {config.description && (
+                    <div className="description-default">
+                      <MarkdownRenderer content={config.description} />
+                    </div>
+                  )}
+                  <div>Available options: {config.options.map((opt, idx) => (
+                    <span key={idx}>
+                      {opt.label} ({opt.value}){idx < config.options!.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}</div>
+                  {config.defaultValue !== undefined && (
+                    <div>Default value: {Array.isArray(config.defaultValue) ? config.defaultValue.join(', ') : String(config.defaultValue)}</div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-1 mb-1 min-w-0">
               <label className="label-default">
                 {config.label}
@@ -452,7 +560,34 @@ export function FormField({ config, value, onChange }: FormFieldProps) {
         return <ArrayFieldInput config={config} value={value as string[] | undefined} onChange={onChange} />
       
       case 'multi-select':
-        return <MultiSelectField config={config} value={value as string[] | undefined} onChange={onChange ? (val: string[] | undefined) => onChange(val as any) : undefined} />
+        // Add hidden options list for scrapers
+        const multiSelectContent = (
+          <div className="py-4 min-w-0">
+            {config.options && config.options.length > 0 && (
+              <div className="sr-only">
+                <div>
+                  <strong>{config.label}</strong>
+                  {config.required && <span> (required)</span>}
+                  {config.description && (
+                    <div className="description-default">
+                      <MarkdownRenderer content={config.description} />
+                    </div>
+                  )}
+                  <div>Available options: {config.options.map((opt, idx) => (
+                    <span key={idx}>
+                      {opt.label} ({opt.value}){idx < config.options!.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}</div>
+                  {config.defaultValue !== undefined && (
+                    <div>Default value: {Array.isArray(config.defaultValue) ? config.defaultValue.join(', ') : String(config.defaultValue)}</div>
+                  )}
+                </div>
+              </div>
+            )}
+            <MultiSelectField config={config} value={value as string[] | undefined} onChange={onChange ? (val: string[] | undefined) => onChange(val as any) : undefined} />
+          </div>
+        )
+        return multiSelectContent
       
       case 'object':
         return <ObjectField config={config} value={value as Record<string, any>} onChange={onChange as (value: Record<string, any>) => void} />
@@ -740,6 +875,11 @@ export function FormField({ config, value, onChange }: FormFieldProps) {
     }
   }
 
-  return renderField()
+  return (
+    <>
+      {fieldMetadata}
+      {renderField()}
+    </>
+  )
 }
 
