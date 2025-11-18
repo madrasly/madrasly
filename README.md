@@ -21,7 +21,7 @@ https://coingecko-y.vercel.app/
 
 **Create a playground:**
 ```bash
-python3 generate.py <spec-path> <output-path>
+python generate.py <spec-path> <output-path>
 ```
 
 **Run it:**
