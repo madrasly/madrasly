@@ -27,7 +27,7 @@ export function ApiPageHeader({ title, description, actions }: ApiPageHeaderProp
     if (action.onClick) {
       action.onClick()
     }
-    
+
     // Show feedback for copy actions
     if (action.label.toLowerCase().includes('copy')) {
       setCopiedIndex(index)
@@ -47,13 +47,13 @@ export function ApiPageHeader({ title, description, actions }: ApiPageHeaderProp
 
   return (
     <div className="mb-8 min-w-0">
-      <div className="flex items-center justify-between mb-2 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-3 sm:gap-4">
         <h1 className="text-[32px] font-semibold text-primary break-words max-w-4xl">{title}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {actions?.map((action, index) => {
             const isCopied = copiedIndex === index
             const isCopyAction = action.label.toLowerCase().includes('copy')
-            
+
             return (
               <Tooltip key={index}>
                 <TooltipTrigger asChild>
@@ -88,4 +88,3 @@ export function ApiPageHeader({ title, description, actions }: ApiPageHeaderProp
     </div>
   )
 }
-
