@@ -2,9 +2,15 @@
 
 /**
  * Watch script that automatically regenerates the playground when files change
- * Usage: node watch.js <openapi-file> <output-dir> [--api-key KEY] [--workspace-image URL|FILE] [--no-interactive]
+ * Uses the TypeScript generator by default (much faster than Python)
  * 
- * Note: Interactive prompts only show on first run. Regenerations are silent.
+ * Usage: node watch.js <openapi-file> <output-dir> [OPTIONS]
+ * 
+ * Options:
+ *   --api-key KEY              API key for automatic authentication
+ *   --workspace-image URL|FILE Workspace image URL or file path
+ *   --no-interactive           Skip interactive prompts
+ *   --use-python-generator     Use legacy Python generator instead of TypeScript
  */
 
 const { spawn } = require('child_process');
@@ -13,7 +19,7 @@ const path = require('path');
 
 const openapiFile = process.argv[2] || 'example-spec.yaml';
 const outputDir = process.argv[3] || 'example';
-const pythonScript = path.join(__dirname, 'generate.py');
+
 
 // Parse --api-key argument if provided
 let apiKey = null;
@@ -36,6 +42,9 @@ for (let i = 0; i < process.argv.length; i++) {
 // Parse --no-interactive argument
 const noInteractive = process.argv.includes('--no-interactive');
 
+// Parse --use-python-generator argument (fallback to legacy generator)
+const usePythonGenerator = process.argv.includes('--use-python-generator');
+
 let isGenerating = false;
 let regenerateTimeout = null;
 let nextDevProcess = null;
@@ -57,9 +66,28 @@ function regenerate() {
 
     isGenerating = true;
     console.log(`\n🔄 Regenerating playground from ${openapiFile}...`);
-    
+
     const startTime = Date.now();
-    const args = [pythonScript, openapiFile, outputDir, '--force'];
+    let command, args;
+
+    if (usePythonGenerator) {
+      // Use legacy Python generator
+      console.log('   Using Python generator (legacy)...');
+      command = 'python3';
+      args = [path.join(__dirname, 'generate.py'), openapiFile, outputDir, '--force'];
+    } else {
+      // Use TypeScript generator (default)
+      console.log('   Using TypeScript generator...');
+      command = 'node';
+      args = [
+        path.join(__dirname, 'packages/generator/dist/cli.js'),
+        openapiFile,
+        outputDir,
+        '--force'
+      ];
+    }
+
+    // Add common arguments
     if (apiKey) {
       args.push('--api-key', apiKey);
     }
@@ -69,12 +97,13 @@ function regenerate() {
     if (noInteractive) {
       args.push('--no-interactive');
     }
-    const python = spawn('python3', args, {
+
+    const generator = spawn(command, args, {
       stdio: 'inherit',
       cwd: __dirname
     });
 
-    python.on('close', (code) => {
+    generator.on('close', (code) => {
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       isGenerating = false;
       if (code === 0) {
@@ -86,7 +115,7 @@ function regenerate() {
       }
     });
 
-    python.on('error', (err) => {
+    generator.on('error', (err) => {
       isGenerating = false;
       reject(err);
     });
@@ -95,18 +124,18 @@ function regenerate() {
 
 // Watch for changes to:
 // 1. The OpenAPI spec file
-// 2. The Python generator script
+// 2. The TypeScript generator package
 // 3. Template files in src/ directory
 
 const watchPaths = [
   openapiFile,
-  pythonScript,
+  path.join(__dirname, 'packages/generator/src'),
   path.join(__dirname, 'src')
 ];
 
 console.log('👀 Watching for changes...');
 console.log(`   - OpenAPI spec: ${openapiFile}`);
-console.log(`   - Generator: ${pythonScript}`);
+console.log(`   - Generator: TypeScript (packages/generator)`);
 console.log(`   - Templates: ${path.join(__dirname, 'src')}`);
 console.log(`   - Output: ${outputDir}\n`);
 
@@ -122,7 +151,7 @@ watchPaths.forEach(watchPath => {
         if (regenerateTimeout) {
           clearTimeout(regenerateTimeout);
         }
-        
+
         regenerateTimeout = setTimeout(async () => {
           console.log(`\n📝 Detected change: ${filename}`);
           try {
@@ -147,10 +176,10 @@ async function startDevServerIfNeeded() {
   const codeDir = path.join(__dirname, outputDir);
   const nodeModulesPath = path.join(codeDir, 'node_modules');
   const fs = require('fs');
-  
+
   // Wait a bit for file system to settle after regeneration
   await new Promise(resolve => setTimeout(resolve, 500));
-  
+
   // Check if node_modules exists, if not, install dependencies first
   if (!fs.existsSync(nodeModulesPath)) {
     console.log('📦 Installing dependencies...\n');
@@ -158,7 +187,7 @@ async function startDevServerIfNeeded() {
       stdio: 'inherit',
       cwd: codeDir
     });
-    
+
     install.on('close', (code) => {
       if (code === 0) {
         console.log('\n🚀 Starting Next.js dev server...\n');
@@ -171,7 +200,7 @@ async function startDevServerIfNeeded() {
   } else {
     startDevServer();
   }
-  
+
   function startDevServer() {
     devServerStarted = true;
     nextDevProcess = spawn('pnpm', ['dev'], {
