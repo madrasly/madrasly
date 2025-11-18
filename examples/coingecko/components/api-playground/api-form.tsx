@@ -28,6 +28,7 @@ interface ApiFormProps {
     name?: string
     in?: string
   }
+  onRunClick?: () => void  // Callback when Run button is clicked
 }
 
 // Helper function to set nested value using dot notation
@@ -35,7 +36,7 @@ function setNestedValue(obj: Record<string, any>, path: string, value: any): Rec
   const keys = path.split('.')
   const result = { ...obj }
   let current: any = result
-  
+
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i]
     if (!(key in current) || typeof current[key] !== 'object' || Array.isArray(current[key])) {
@@ -45,10 +46,10 @@ function setNestedValue(obj: Record<string, any>, path: string, value: any): Rec
     }
     current = current[key]
   }
-  
+
   const lastKey = keys[keys.length - 1]
   current[lastKey] = value
-  
+
   return result
 }
 
@@ -56,27 +57,27 @@ function setNestedValue(obj: Record<string, any>, path: string, value: any): Rec
 function deleteNestedValue(obj: Record<string, any>, path: string): Record<string, any> {
   const keys = path.split('.')
   const result = { ...obj }
-  
+
   if (keys.length === 1) {
     // Top-level property
     const newResult = { ...result }
     delete newResult[keys[0]]
     return newResult
   }
-  
+
   // Nested property - need to rebuild the nested structure
   let current: any = result
   const pathExists = keys.every((key, index) => {
     if (index === keys.length - 1) return true
     return key in current && typeof current[key] === 'object' && current[key] !== null && !Array.isArray(current[key])
   })
-  
+
   if (!pathExists) return result
-  
+
   // Rebuild the nested structure, omitting the target key
   const newResult = { ...result }
   let target: any = newResult
-  
+
   for (let i = 0; i < keys.length - 1; i++) {
     if (!(keys[i] in target) || typeof target[keys[i]] !== 'object' || target[keys[i]] === null || Array.isArray(target[keys[i]])) {
       return result // Path doesn't exist
@@ -84,12 +85,12 @@ function deleteNestedValue(obj: Record<string, any>, path: string): Record<strin
     target[keys[i]] = { ...target[keys[i]] }
     target = target[keys[i]]
   }
-  
+
   const lastKey = keys[keys.length - 1]
   if (lastKey in target) {
     delete target[lastKey]
   }
-  
+
   return newResult
 }
 
@@ -97,16 +98,16 @@ function deleteNestedValue(obj: Record<string, any>, path: string): Record<strin
 function getNestedValue(obj: Record<string, any>, path: string): any {
   const keys = path.split('.')
   let current: any = obj
-  
+
   for (const key of keys) {
     if (current === undefined || current === null) return undefined
     current = current[key]
   }
-  
+
   return current
 }
 
-export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoading, examples, authConfig, securityScheme }: ApiFormProps) {
+export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoading, examples, authConfig, securityScheme, onRunClick }: ApiFormProps) {
   // Initialize form data with default values - recalculate when formFields change
   // Handle nested structures properly
   const initialFormData = useMemo(() => {
@@ -128,7 +129,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
   const [formData, setFormData] = useState<Record<string, any>>(initialFormData)
   const [selectedExample, setSelectedExample] = useState<string>('')
   const [apiKey, setApiKey] = useState<string>('')
-  
+
   // Show auth field only in manual mode
   const showAuthField = authConfig?.mode === 'manual' && securityScheme
 
@@ -141,13 +142,13 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
         return field
       }
     }
-    
+
     // If no exact match and path contains dots, try to find parent object and search nested
     if (fieldPath.includes('.')) {
       const parts = fieldPath.split('.')
       const parentName = parts[0]
       const childPath = parts.slice(1).join('.')
-      
+
       // Find parent field
       for (const field of fields) {
         if (field.name === parentName && field.nestedFields) {
@@ -157,7 +158,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
         }
       }
     }
-    
+
     return undefined
   }
 
@@ -187,21 +188,21 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
     const field = findFieldConfig(fieldPath, formFields)
     // Always include required fields, even if they match defaults
     if (!field || field.required) return false
-    
+
     // Always include fields that the user has explicitly modified
     const fieldName = fieldPath.split('.')[0] // Get top-level field name
     if (userModifiedFields.current.has(fieldName)) {
       return false
     }
-    
+
     const defaultValue = field.defaultValue
     if (defaultValue === undefined) return false // No default to match
-    
+
     // Deep equality check
     if (JSON.stringify(value) === JSON.stringify(defaultValue)) {
       return true
     }
-    
+
     return false
   }, [formFields])
 
@@ -219,10 +220,10 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
       for (const [key, value] of Object.entries(obj)) {
         // Skip internal keys
         if (key.startsWith('__')) continue
-        
+
         const fieldPath = parentPath ? `${parentPath}.${key}` : key
         const cleanedValue = cleanData(value, fieldPath)
-        
+
         // Only include non-undefined values
         if (cleanedValue !== undefined) {
           // Check if this value matches the schema default (only for top-level fields)
@@ -275,7 +276,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
     }
     // Clean data to exclude defaults (so code editor matches what will be sent)
     const cleanedData = cleanData(data)
-    
+
     // Only call onFormChange if the cleaned data actually changed
     const cleanedDataString = JSON.stringify(cleanedData)
     if (cleanedDataString !== lastCleanedDataRef.current) {
@@ -287,6 +288,9 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
   }, [urlValue, formData, urlField, apiKey, showAuthField])
 
   const handleSubmit = () => {
+    // Trigger onRunClick callback (to switch to code view on mobile)
+    onRunClick?.()
+
     const data: Record<string, any> = { ...formData }
     if (urlField) {
       data[urlField.name || 'url'] = urlValue
@@ -296,7 +300,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
     // We'll determine this in the parent component, but for now, be more permissive
     // Include all values that exist in formData, even if they match defaults
     const cleanedData = cleanData(data)
-    
+
     // If cleanedData is missing fields that were in formData, add them back
     // This ensures user-entered values (even if matching defaults) are included
     const finalData: Record<string, any> = { ...cleanedData }
@@ -310,7 +314,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
         }
       }
     })
-    
+
     // Pass API key separately, not in form data
     onSubmit?.(finalData, showAuthField ? apiKey : undefined)
   }
@@ -340,7 +344,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
     // Start with a fresh form data object - only include values from the example
     // Don't initialize with defaults - if a field isn't in the example, leave it empty
     const newFormData: Record<string, any> = {}
-    
+
     // Apply parsed values from example
     // Create maps for quick lookup
     const topLevelFieldNames = new Set(
@@ -356,7 +360,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
         fieldBaseNames.set(baseName, field.name)
       }
     })
-    
+
     for (const [key, value] of Object.entries(parsedValues)) {
       // Check if this is the URL field (path parameter)
       if (urlField && key === urlField.name) {
@@ -389,9 +393,9 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
         }
       }
     }
-    
+
     setFormData(newFormData)
-    
+
     // Keep the selected example value so it displays in the dropdown
     setSelectedExample(exampleValue)
   }
@@ -418,19 +422,19 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
           </div>
         )}
         {(!examples || examples.length === 0) && <div />}
-        
+
         {/* Run/Clear Buttons */}
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={handleClear}
             className="btn-secondary"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
             </svg>
             Clear
           </button>
-          <Button 
+          <Button
             onClick={handleSubmit}
             disabled={isLoading}
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 h-auto rounded-md flex items-center gap-2 cursor-pointer transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -472,10 +476,10 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
             {securityScheme?.type === 'http' && securityScheme?.scheme === 'bearer'
               ? 'API Key (Bearer Token)'
               : securityScheme?.type === 'apiKey' && securityScheme?.in === 'header'
-              ? `API Key (${securityScheme.name || 'Header'})`
-              : securityScheme?.type === 'apiKey' && securityScheme?.in === 'query'
-              ? `API Key (${securityScheme.name || 'Query Parameter'})`
-              : 'API Key'}
+                ? `API Key (${securityScheme.name || 'Header'})`
+                : securityScheme?.type === 'apiKey' && securityScheme?.in === 'query'
+                  ? `API Key (${securityScheme.name || 'Query Parameter'})`
+                  : 'API Key'}
           </label>
           <Input
             type="password"
@@ -486,8 +490,8 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
               securityScheme?.type === 'http' && securityScheme?.scheme === 'bearer'
                 ? 'Enter your Bearer token'
                 : securityScheme?.type === 'apiKey'
-                ? `Enter your ${securityScheme.name || 'API key'}`
-                : 'Enter your API key'
+                  ? `Enter your ${securityScheme.name || 'API key'}`
+                  : 'Enter your API key'
             }
           />
         </div>
@@ -499,7 +503,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
           const fieldValue = field.name.includes('.')
             ? getNestedValue(formData, field.name)
             : formData[field.name]
-          
+
           // Handle onChange - update nested or flat value
           // If value is undefined, delete the property instead of setting it to undefined
           const handleFieldChange = (value: any) => {
@@ -508,7 +512,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
             if (value !== undefined && value !== null && value !== '') {
               userModifiedFields.current.add(fieldName)
             }
-            
+
             if (field.name.includes('.')) {
               if (value === undefined) {
                 // Delete nested property - this forces a complete reset
@@ -529,7 +533,7 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
               }
             }
           }
-          
+
           return (
             <FormField
               key={index}

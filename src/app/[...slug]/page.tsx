@@ -12,7 +12,8 @@ import { parseOpenAPIToConfig } from '@/lib/openapi-parser'
 import { parseSidebarConfig } from '@/lib/openapi-sidebar-parser'
 import { findEndpointBySlug, generateSlugFromEndpoint } from '@/lib/slug-utils'
 import { extractDocsUrl } from '@/lib/utils'
-import { FileText } from 'lucide-react'
+import { FileText, Menu, X } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 // Note: openApiSpec should be dereferenced (all $refs resolved) at generation time
 // using @apidevtools/swagger-parser. The generator script should handle this.
 import openApiSpec from '../../openapi.json'
@@ -23,12 +24,12 @@ export default function SlugPage() {
   const router = useRouter()
   const pathname = usePathname()
   const slug = params?.slug as string[] | undefined
-  
+
   // If we're on the root path, show landing page instead
   if (pathname === '/') {
     return <LandingPage />
   }
-  
+
   const [endpointConfig, setEndpointConfig] = useState<any>(null)
   const [sidebarConfig, setSidebarConfig] = useState<any>(null)
   const [apiResponse, setApiResponse] = useState<any>(null)
@@ -39,6 +40,12 @@ export default function SlugPage() {
   const previousEndpointKeyRef = useRef<string | undefined>(undefined)
   const currentEndpointKeyRef = useRef<string | undefined>(undefined) // Track current endpoint for race condition checks
   const abortControllerRef = useRef<AbortController | null>(null) // Track in-flight requests
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Close mobile menu when pathname changes (navigation happens)
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     // Don't handle empty slug - redirect to root to let page.tsx handle it (landing page)
@@ -52,7 +59,7 @@ export default function SlugPage() {
     const slugString = Array.isArray(slug) ? slug.join('/') : String(slug)
     const previousEndpointKey = previousEndpointKeyRef.current
     console.log('[DEBUG] Slug changed:', slugString, 'Found endpoint key:', foundEndpointKey, 'Previous endpoint key:', previousEndpointKey, 'Current endpoint key:', endpointKey)
-    
+
     if (!foundEndpointKey) {
       // If not found, redirect to landing page
       router.replace('/')
@@ -63,36 +70,36 @@ export default function SlugPage() {
     if (foundEndpointKey !== previousEndpointKey) {
       console.log('[DEBUG] Endpoint changed from', previousEndpointKey, 'to', foundEndpointKey, '- resetting state')
       previousEndpointKeyRef.current = foundEndpointKey
-      
+
       // IMMEDIATELY clear all state before setting new endpoint
       // Use functional updates to ensure we're clearing the latest state
       setApiResponse(() => null)
       setError(() => null)
       setIsLoading(() => false)
       setFormValues(() => ({}))
-      
+
       // Cancel any in-flight requests for the previous endpoint
       if (abortControllerRef.current) {
         console.log('[DEBUG] Cancelling in-flight request for previous endpoint')
         abortControllerRef.current.abort()
         abortControllerRef.current = null
       }
-      
+
       // Set new endpoint key and config
       setEndpointKey(() => foundEndpointKey)
       currentEndpointKeyRef.current = foundEndpointKey // Update ref immediately
       const config = parseOpenAPIToConfig(openApiSpec as any, foundEndpointKey)
       setEndpointConfig(() => config)
-      
+
       console.log('[DEBUG] State cleared and new endpoint set:', foundEndpointKey)
     } else {
       console.log('[DEBUG] Endpoint unchanged, skipping state reset')
     }
 
     const sidebar = parseSidebarConfig(
-      { 
-        ...openApiSpec['x-ui-config']?.sidebar, 
-        endpoints: openApiSpec['x-ui-config']?.endpoints 
+      {
+        ...openApiSpec['x-ui-config']?.sidebar,
+        endpoints: openApiSpec['x-ui-config']?.endpoints
       },
       (key: string) => {
         const endpointSlug = generateSlugFromEndpoint(openApiSpec as any, key)
@@ -104,7 +111,7 @@ export default function SlugPage() {
       },
       openApiSpec as any
     )
-    
+
     // Update active state in sidebar
     if (sidebar.navItems) {
       sidebar.navItems.forEach(section => {
@@ -113,7 +120,7 @@ export default function SlugPage() {
         })
       })
     }
-    
+
     setSidebarConfig(sidebar)
   }, [slug, router])
 
@@ -131,11 +138,11 @@ export default function SlugPage() {
     const method = uiConfig.method.toLowerCase() as string
     const paths = openApiSpec.paths as Record<string, Record<string, any>> | undefined
     const openApiOperation = paths?.[path]?.[method]
-    
+
     if (!openApiOperation) {
       return undefined
     }
-    
+
     // Structure operation object to match what generateCodeSamples expects
     return {
       method: uiConfig.method, // Use the method from UI config (uppercase)
@@ -156,13 +163,13 @@ export default function SlugPage() {
 
   const securityScheme = useMemo(() => {
     const securitySchemes = openApiSpec.components?.securitySchemes as Record<string, any> | undefined
-    
+
     // First try to get scheme from config
     if (authConfig.schemeName && securitySchemes) {
       const scheme = securitySchemes[authConfig.schemeName]
       if (scheme) return scheme
     }
-    
+
     // Fall back to checking operation security or global security
     if (operation?.security && operation.security.length > 0) {
       // Get first security scheme from operation
@@ -172,7 +179,7 @@ export default function SlugPage() {
         return securitySchemes[schemeName]
       }
     }
-    
+
     // Check global security
     if (openApiSpec.security && openApiSpec.security.length > 0) {
       const firstSecurity = openApiSpec.security[0]
@@ -181,13 +188,13 @@ export default function SlugPage() {
         return securitySchemes[schemeName]
       }
     }
-    
+
     // If security schemes exist, use the first one
     if (securitySchemes && Object.keys(securitySchemes).length > 0) {
       const firstSchemeName = Object.keys(securitySchemes)[0]
       return securitySchemes[firstSchemeName]
     }
-    
+
     return undefined
   }, [authConfig.schemeName, operation])
 
@@ -211,7 +218,7 @@ export default function SlugPage() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
-    
+
     // Create new AbortController for this request
     const abortController = new AbortController()
     abortControllerRef.current = abortController
@@ -233,17 +240,17 @@ export default function SlugPage() {
         setIsLoading(false)
         return
       }
-      
+
       const uiConfig = endpoints[endpointKey]
       const method = uiConfig.method as string
       const path = uiConfig.path as string
 
       // Get content type from requestBody content (default to application/json)
       const requestBodyContent = operation?.requestBody?.content
-      const contentType = requestBodyContent 
+      const contentType = requestBodyContent
         ? Object.keys(requestBodyContent)[0] || 'application/json'
         : 'application/json'
-      
+
       // Get security scheme info
       let securityScheme: any = null
       const securitySchemes = openApiSpec.components?.securitySchemes as Record<string, any> | undefined
@@ -272,7 +279,7 @@ export default function SlugPage() {
           }
         }
       }
-      
+
       // Determine the correct header name for API key based on security scheme
       // For query parameter auth, we still pass it via a header to the API route,
       // which will then add it to the query string
@@ -285,7 +292,7 @@ export default function SlugPage() {
       } else if (securityScheme) {
         authHeaderName = 'x-api-key'
       }
-      
+
       // API key is passed separately, not in form data
       let response: Response
       try {
@@ -314,10 +321,10 @@ export default function SlugPage() {
           console.log('[DEBUG] Request aborted - endpoint changed during request')
           return // Don't set error or response, just return silently
         }
-        
+
         // Handle network errors (fetch failed - no connection, CORS, etc.)
         let errorMessage = 'Network error: Could not reach the server'
-        
+
         if (networkError instanceof TypeError) {
           if (networkError.message.includes('fetch')) {
             errorMessage = 'Network error: Unable to connect to the server. Please check your internet connection.'
@@ -329,7 +336,7 @@ export default function SlugPage() {
         } else if (typeof networkError === 'string') {
           errorMessage = `Network error: ${networkError}`
         }
-        
+
         // Only set error if we're still on the same endpoint
         if (currentEndpointKey === currentEndpointKeyRef.current) {
           setError(errorMessage)
@@ -345,13 +352,13 @@ export default function SlugPage() {
         // Handle JSON parse errors
         let errorMessage = 'Invalid response: Server returned non-JSON data'
         const requestId = response.headers.get('x-request-id') || 'unknown'
-        
+
         if (jsonError instanceof SyntaxError) {
           errorMessage = `Invalid response format: ${jsonError.message}`
         } else if (jsonError instanceof Error) {
           errorMessage = `Failed to parse response: ${jsonError.message}`
         }
-        
+
         setError(`${errorMessage} (Request ID: ${requestId})`)
         return
       }
@@ -362,7 +369,7 @@ export default function SlugPage() {
         const errorMessage = result.error || result.message || 'API request failed'
         const requestId = result.requestId || 'unknown'
         const details = result.details ? ` Details: ${Array.isArray(result.details) ? result.details.join(', ') : result.details}` : ''
-        
+
         // Handle specific error types
         if (response.status === 504) {
           setError(`Request timeout: ${errorMessage} (Request ID: ${requestId})`)
@@ -384,7 +391,7 @@ export default function SlugPage() {
         console.log('[DEBUG] Request was aborted - ignoring response')
         return
       }
-      
+
       // Double-check by comparing with the ref (most reliable source of truth)
       const currentRefEndpoint = currentEndpointKeyRef.current
       if (currentEndpointKey === currentRefEndpoint) {
@@ -397,7 +404,7 @@ export default function SlugPage() {
     } catch (err: unknown) {
       // Handle any other unexpected errors
       let errorMessage = 'An unexpected error occurred while making the API request'
-      
+
       if (err instanceof Error) {
         errorMessage = err.message || errorMessage
       } else if (typeof err === 'string') {
@@ -405,7 +412,7 @@ export default function SlugPage() {
       } else if (err && typeof err === 'object' && 'message' in err) {
         errorMessage = String(err.message)
       }
-      
+
       setError(errorMessage)
     } finally {
       setIsLoading(false)
@@ -414,45 +421,45 @@ export default function SlugPage() {
 
   const handleCopyForAI = () => {
     if (!endpointConfig) return
-    
+
     const baseUrl = openApiSpec.servers?.[0]?.url || ''
     const method = endpointConfig.method
     const path = endpointConfig.path
     const paths = openApiSpec.paths as Record<string, Record<string, any>> | undefined
     const operation = paths?.[path]?.[method.toLowerCase()]
-    
+
     // Build example URL with path parameters (use examples/defaults, not form values)
     let fullPath = path
     const pathParams: Record<string, any> = {}
-    
+
     if (operation?.parameters) {
       for (const param of operation.parameters) {
         if (param.in === 'path') {
-          const value = param.schema?.example || 
-                       param.example || 
-                       param.schema?.default || 
-                       `{${param.name}}`
+          const value = param.schema?.example ||
+            param.example ||
+            param.schema?.default ||
+            `{${param.name}}`
           pathParams[param.name] = value
           fullPath = fullPath.replace(`{${param.name}}`, String(value))
         }
       }
     }
-    
+
     // Build example query string (use examples/defaults, not form values)
     const exampleQueryParams: Array<[string, any]> = []
     if (operation?.parameters) {
       for (const param of operation.parameters) {
         if (param.in === 'query') {
-          const value = param.schema?.example || 
-                       param.example || 
-                       param.schema?.default
+          const value = param.schema?.example ||
+            param.example ||
+            param.schema?.default
           if (value !== undefined && value !== null && value !== '') {
             exampleQueryParams.push([param.name, value])
           }
         }
       }
     }
-    
+
     const queryString = exampleQueryParams
       .map(([key, value]) => {
         if (Array.isArray(value)) {
@@ -461,23 +468,23 @@ export default function SlugPage() {
         return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
       })
       .join('&')
-    
-    const fullUrl = queryString 
+
+    const fullUrl = queryString
       ? `${baseUrl}${fullPath}?${queryString}`
       : `${baseUrl}${fullPath}`
-    
+
     // Generate markdown
     let markdown = `# ${endpointConfig.title}\n\n`
-    
+
     if (endpointConfig.description) {
       markdown += `${endpointConfig.description}\n\n`
     }
-    
+
     markdown += `## Endpoint\n\n`
     markdown += `**Method:** \`${method}\`\n\n`
     markdown += `**Path:** \`${path}\`\n\n`
     markdown += `**Full URL:** \`${fullUrl}\`\n\n`
-    
+
     // Authentication
     if (operation?.security || openApiSpec.security) {
       const security = operation?.security || openApiSpec.security
@@ -505,7 +512,7 @@ export default function SlugPage() {
         }
       }
     }
-    
+
     // Path Parameters
     const pathParamsList = operation?.parameters?.filter((p: any) => p.in === 'path') || []
     if (pathParamsList.length > 0) {
@@ -524,7 +531,7 @@ export default function SlugPage() {
         }
       }
     }
-    
+
     // Query Parameters
     const queryParamsList = operation?.parameters?.filter((p: any) => p.in === 'query') || []
     if (queryParamsList.length > 0) {
@@ -534,14 +541,14 @@ export default function SlugPage() {
         if (param.description) {
           markdown += `${param.description}\n\n`
         }
-        
+
         let paramSchema = param.schema
         if (paramSchema?.$ref) {
           const refPath = paramSchema.$ref.replace('#/components/schemas/', '')
           const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
           paramSchema = schemas?.[refPath] || paramSchema
         }
-        
+
         let typeDisplay = paramSchema?.type || 'string'
         if (paramSchema?.type === 'object' && paramSchema.properties) {
           const propKeys = Object.keys(paramSchema.properties)
@@ -549,7 +556,7 @@ export default function SlugPage() {
             typeDisplay = `object (${propKeys.join(', ')})`
           }
         }
-        
+
         markdown += `**Type:** \`${typeDisplay}\`\n\n`
         markdown += `**Required:** ${param.required ? 'Yes' : 'No'}\n\n`
         if (paramSchema?.enum) {
@@ -565,17 +572,17 @@ export default function SlugPage() {
         }
       }
     }
-    
+
     // Request Body
     if (operation?.requestBody) {
       markdown += `## Request Body\n\n`
       const requestBodyContent = operation.requestBody.content
-      const contentType = requestBodyContent 
+      const contentType = requestBodyContent
         ? (requestBodyContent['application/json'] ? 'application/json' : Object.keys(requestBodyContent)[0])
         : 'application/json'
       const jsonContent = requestBodyContent?.[contentType]
       const bodySchema = jsonContent?.schema
-      
+
       if (bodySchema) {
         let resolvedSchema = bodySchema
         if (bodySchema.$ref) {
@@ -583,19 +590,19 @@ export default function SlugPage() {
           const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
           resolvedSchema = schemas?.[refPath] || bodySchema
         }
-        
+
         if (resolvedSchema.description) {
           markdown += `${resolvedSchema.description}\n\n`
         } else if (operation.requestBody.description) {
           markdown += `${operation.requestBody.description}\n\n`
         }
-        
+
         markdown += `**Content-Type:** \`${contentType}\`\n\n`
-        
+
         if (resolvedSchema.properties) {
           const required = resolvedSchema.required || []
           markdown += `### Fields\n\n`
-          
+
           for (const [name, prop] of Object.entries(resolvedSchema.properties)) {
             let propSchema = prop as any
             if (propSchema.$ref) {
@@ -606,14 +613,14 @@ export default function SlugPage() {
                 propSchema = { ...refSchema, description: propSchema.description || refSchema.description }
               }
             }
-            
+
             if (propSchema.anyOf && Array.isArray(propSchema.anyOf)) {
               const nonNullType = propSchema.anyOf.find((s: any) => s.type !== 'null' && s.type !== undefined)
               if (nonNullType) {
                 propSchema = { ...nonNullType, description: propSchema.description || nonNullType.description }
               }
             }
-            
+
             markdown += `#### \`${name}\`\n\n`
             if (propSchema.description) {
               markdown += `${propSchema.description}\n\n`
@@ -631,7 +638,7 @@ export default function SlugPage() {
             }
           }
         }
-        
+
         if (jsonContent.example) {
           markdown += `### Example Request Body\n\n`
           markdown += `\`\`\`json\n${JSON.stringify(jsonContent.example, null, 2)}\n\`\`\`\n\n`
@@ -643,15 +650,15 @@ export default function SlugPage() {
         markdown += `**Content-Type:** \`${contentType}\`\n\n`
       }
     }
-    
+
     // Response
     if (operation?.responses) {
       markdown += `## Response\n\n`
       const successResponse = operation.responses['200'] || operation.responses['201'] || operation.responses['204']
       if (successResponse) {
         const responseContentTypes = successResponse.content ? Object.keys(successResponse.content) : []
-        const responseContentType = responseContentTypes.includes('application/json') 
-          ? 'application/json' 
+        const responseContentType = responseContentTypes.includes('application/json')
+          ? 'application/json'
           : (responseContentTypes[0] || 'application/json')
         const responseContent = successResponse.content?.[responseContentType]
         if (responseContent?.schema) {
@@ -661,13 +668,13 @@ export default function SlugPage() {
             const schemas = openApiSpec.components?.schemas as Record<string, any> | undefined
             responseSchema = schemas?.[refPath] || responseSchema
           }
-          
+
           if (responseSchema.description) {
             markdown += `${responseSchema.description}\n\n`
           } else if (successResponse.description) {
             markdown += `${successResponse.description}\n\n`
           }
-          
+
           if (responseContent.example) {
             markdown += `**Example Response:**\n\n`
             markdown += `\`\`\`json\n${JSON.stringify(responseContent.example, null, 2)}\n\`\`\`\n\n`
@@ -679,22 +686,22 @@ export default function SlugPage() {
         markdown += `**Status Code:** \`${Object.keys(operation.responses).find(k => ['200', '201', '204'].includes(k)) || '200'}\`\n\n`
       }
     }
-    
+
     // Code Examples
     const hasSpecExamples = operation['x-oaiMeta']?.examples?.request
     const hasGeneratedSamples = endpointConfig?.codeSamples && endpointConfig.codeSamples.length > 0
-    
+
     if (hasSpecExamples || hasGeneratedSamples) {
       markdown += `## Code Examples\n\n`
-      
+
       if (hasSpecExamples) {
         const requestExamples = operation['x-oaiMeta'].examples.request
-        
+
         if (requestExamples.python) {
           markdown += `### Python\n\n`
           markdown += `\`\`\`python\n${requestExamples.python}\n\`\`\`\n\n`
         }
-        
+
         if (requestExamples['node.js']) {
           markdown += `### Node.js\n\n`
           markdown += `\`\`\`javascript\n${requestExamples['node.js']}\n\`\`\`\n\n`
@@ -702,18 +709,18 @@ export default function SlugPage() {
           markdown += `### Node.js\n\n`
           markdown += `\`\`\`javascript\n${requestExamples.node}\n\`\`\`\n\n`
         }
-        
+
         if (requestExamples.curl) {
           markdown += `### cURL\n\n`
           markdown += `\`\`\`bash\n${requestExamples.curl}\n\`\`\`\n\n`
         }
       }
-      
+
       if (hasGeneratedSamples) {
         for (const sample of endpointConfig.codeSamples) {
           const lang = sample.language
           const code = sample.code
-          
+
           if (lang === 'python') {
             markdown += `### Python\n\n`
             markdown += `\`\`\`python\n${code}\n\`\`\`\n\n`
@@ -727,12 +734,12 @@ export default function SlugPage() {
         }
       }
     }
-    
+
     navigator.clipboard.writeText(markdown)
   }
 
   const docsUrl = extractDocsUrl(openApiSpec as any)
-  
+
   const handleDocs = () => {
     if (docsUrl) {
       window.open(docsUrl, '_blank', 'noopener,noreferrer')
@@ -746,165 +753,211 @@ export default function SlugPage() {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-background">
-        <Sidebar 
-          navItems={sidebarConfig.navItems}
-          activeEndpoint={endpointKey}
-          workspace={sidebarConfig.workspace}
-          openApiSpec={openApiSpec}
-        />
-
-        <ResizablePanel
-          left={
-            <div className="p-8 max-w-[896px] w-full mx-auto min-w-0">
-              <ApiPageHeader
-                title={endpointConfig.title}
-                description={endpointConfig.description}
-                actions={docsUrl ? [
-                  {
-                    label: 'Docs',
-                    icon: <FileText size={16} />,
-                    onClick: handleDocs,
-                  },
-                  {
-                    label: 'Copy for AI',
-                    icon: (
-                      <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
-                        <img 
-                          src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
-                          alt="ChatGPT" 
-                          className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
-                          onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
-                          onError={(e) => {
-                            console.error('[DEBUG] ChatGPT logo failed to load', e)
-                            const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
-                          }}
-                        />
-                        <img 
-                          src="https://www.anthropic.com/images/anthropic-logo.svg" 
-                          alt="Anthropic" 
-                          className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
-                          onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
-                          onError={(e) => {
-                            console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
-                            const target = e.target as HTMLImageElement
-                            target.src = 'https://www.anthropic.com/favicon.ico'
-                            target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
-                            target.onerror = () => {
-                              console.error('[DEBUG] Anthropic favicon also failed')
-                              target.style.display = 'none'
-                            }
-                          }}
-                        />
-                        <img 
-                          src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg" 
-                          alt="Gemini" 
-                          className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
-                          onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
-                          onError={(e) => {
-                            console.error('[DEBUG] Gemini logo failed, trying favicon', e)
-                            const target = e.target as HTMLImageElement
-                            target.src = 'https://www.google.com/favicon.ico'
-                            target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
-                            target.onerror = () => {
-                              console.error('[DEBUG] Gemini favicon also failed')
-                              target.style.display = 'none'
-                            }
-                          }}
-                        />
-                      </div>
-                    ),
-                    onClick: handleCopyForAI,
-                  },
-                ] : [
-                  {
-                    label: 'Copy for AI',
-                    icon: (
-                      <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
-                        <img 
-                          src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
-                          alt="ChatGPT" 
-                          className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
-                          onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
-                          onError={(e) => {
-                            console.error('[DEBUG] ChatGPT logo failed to load', e)
-                            const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
-                          }}
-                        />
-                        <img 
-                          src="https://www.anthropic.com/images/anthropic-logo.svg" 
-                          alt="Anthropic" 
-                          className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
-                          onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
-                          onError={(e) => {
-                            console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
-                            const target = e.target as HTMLImageElement
-                            target.src = 'https://www.anthropic.com/favicon.ico'
-                            target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
-                            target.onerror = () => {
-                              console.error('[DEBUG] Anthropic favicon also failed')
-                              target.style.display = 'none'
-                            }
-                          }}
-                        />
-                        <img 
-                          src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg" 
-                          alt="Gemini" 
-                          className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
-                          onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
-                          onError={(e) => {
-                            console.error('[DEBUG] Gemini logo failed, trying favicon', e)
-                            const target = e.target as HTMLImageElement
-                            target.src = 'https://www.google.com/favicon.ico'
-                            target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
-                            target.onerror = () => {
-                              console.error('[DEBUG] Gemini favicon also failed')
-                              target.style.display = 'none'
-                            }
-                          }}
-                        />
-                      </div>
-                    ),
-                    onClick: handleCopyForAI,
-                  },
-                ]}
-              />
-
-              <ApiForm
-                key={`form-${endpointKey}`} // Force remount when endpoint changes
-                urlField={endpointConfig.urlField}
-                formFields={endpointConfig.formFields}
-                onSubmit={handleSubmit}
-                onFormChange={handleFormChange}
-                isLoading={isLoading}
-                examples={endpointConfig.examples}
-                authConfig={authConfig}
-                securityScheme={securityScheme}
-              />
-            </div>
-          }
-          right={
-            (() => {
-              console.log('[DEBUG] Rendering CodeEditor with endpointKey:', endpointKey, 'apiResponse:', apiResponse ? 'has response' : 'null', 'isLoading:', isLoading)
-              return (
-                <CodeEditor 
-                  key={endpointKey} // Force remount when endpoint changes
-                  endpointKey={endpointKey} // Pass endpointKey as prop for internal use
-                  codeSamples={endpointConfig.codeSamples}
-                  defaultLanguage="python"
-                  formValues={formValues}
-                  operation={operation}
-                  spec={spec}
-                  apiResponse={apiResponse}
-                  isLoading={isLoading}
-                  error={error}
+      <div className="flex flex-col h-screen bg-background">
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-default bg-sidebar">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 hover:bg-hover rounded transition-colors"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5 text-primary" />
+          </button>
+          {sidebarConfig?.workspace && (
+            <div className="flex items-center gap-2">
+              {sidebarConfig.workspace.image ? (
+                <img
+                  src={sidebarConfig.workspace.image}
+                  alt={sidebarConfig.workspace.name}
+                  className="w-5 h-5 rounded object-contain"
                 />
-              )
-            })()
-          }
-        />
+              ) : (
+                <div className="w-5 h-5 bg-primary rounded flex items-center justify-center text-primary-foreground text-xs font-bold">
+                  {sidebarConfig.workspace.icon}
+                </div>
+              )}
+              <span className="text-sm font-medium text-primary">{sidebarConfig.workspace.name}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-1 min-h-0">
+          {/* Desktop Sidebar */}
+          <div className="hidden md:flex">
+            <Sidebar
+              navItems={sidebarConfig.navItems}
+              activeEndpoint={endpointKey}
+              workspace={sidebarConfig.workspace}
+              openApiSpec={openApiSpec}
+            />
+          </div>
+
+          {/* Mobile Sheet Sidebar */}
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetContent side="left" className="p-0 w-[280px]">
+              <Sidebar
+                navItems={sidebarConfig.navItems}
+                activeEndpoint={endpointKey}
+                workspace={sidebarConfig.workspace}
+                openApiSpec={openApiSpec}
+                onClose={() => setIsMobileMenuOpen(false)}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <ResizablePanel
+            left={({ onRunClick }) => (
+              <div className="p-8 max-w-[896px] w-full mx-auto min-w-0">
+                <ApiPageHeader
+                  title={endpointConfig.title}
+                  description={endpointConfig.description}
+                  actions={docsUrl ? [
+                    {
+                      label: 'Docs',
+                      icon: <FileText size={16} />,
+                      onClick: handleDocs,
+                    },
+                    {
+                      label: 'Copy for AI',
+                      icon: (
+                        <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
+                          <img
+                            src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg"
+                            alt="ChatGPT"
+                            className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] ChatGPT logo failed to load', e)
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                            }}
+                          />
+                          <img
+                            src="https://www.anthropic.com/images/anthropic-logo.svg"
+                            alt="Anthropic"
+                            className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
+                              const target = e.target as HTMLImageElement
+                              target.src = 'https://www.anthropic.com/favicon.ico'
+                              target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
+                              target.onerror = () => {
+                                console.error('[DEBUG] Anthropic favicon also failed')
+                                target.style.display = 'none'
+                              }
+                            }}
+                          />
+                          <img
+                            src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg"
+                            alt="Gemini"
+                            className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] Gemini logo failed, trying favicon', e)
+                              const target = e.target as HTMLImageElement
+                              target.src = 'https://www.google.com/favicon.ico'
+                              target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
+                              target.onerror = () => {
+                                console.error('[DEBUG] Gemini favicon also failed')
+                                target.style.display = 'none'
+                              }
+                            }}
+                          />
+                        </div>
+                      ),
+                      onClick: handleCopyForAI,
+                    },
+                  ] : [
+                    {
+                      label: 'Copy for AI',
+                      icon: (
+                        <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
+                          <img
+                            src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg"
+                            alt="ChatGPT"
+                            className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] ChatGPT logo failed to load', e)
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                            }}
+                          />
+                          <img
+                            src="https://www.anthropic.com/images/anthropic-logo.svg"
+                            alt="Anthropic"
+                            className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
+                              const target = e.target as HTMLImageElement
+                              target.src = 'https://www.anthropic.com/favicon.ico'
+                              target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
+                              target.onerror = () => {
+                                console.error('[DEBUG] Anthropic favicon also failed')
+                                target.style.display = 'none'
+                              }
+                            }}
+                          />
+                          <img
+                            src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg"
+                            alt="Gemini"
+                            className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
+                            onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
+                            onError={(e) => {
+                              console.error('[DEBUG] Gemini logo failed, trying favicon', e)
+                              const target = e.target as HTMLImageElement
+                              target.src = 'https://www.google.com/favicon.ico'
+                              target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
+                              target.onerror = () => {
+                                console.error('[DEBUG] Gemini favicon also failed')
+                                target.style.display = 'none'
+                              }
+                            }}
+                          />
+                        </div>
+                      ),
+                      onClick: handleCopyForAI,
+                    },
+                  ]}
+                />
+
+                <ApiForm
+                  key={`form-${endpointKey}`} // Force remount when endpoint changes
+                  urlField={endpointConfig.urlField}
+                  formFields={endpointConfig.formFields}
+                  onSubmit={handleSubmit}
+                  onFormChange={handleFormChange}
+                  isLoading={isLoading}
+                  examples={endpointConfig.examples}
+                  authConfig={authConfig}
+                  securityScheme={securityScheme}
+                  onRunClick={onRunClick}
+                />
+              </div>
+            )}
+            right={
+              (() => {
+                console.log('[DEBUG] Rendering CodeEditor with endpointKey:', endpointKey, 'apiResponse:', apiResponse ? 'has response' : 'null', 'isLoading:', isLoading)
+                return (
+                  <CodeEditor
+                    key={endpointKey} // Force remount when endpoint changes
+                    endpointKey={endpointKey} // Pass endpointKey as prop for internal use
+                    codeSamples={endpointConfig.codeSamples}
+                    defaultLanguage="python"
+                    formValues={formValues}
+                    operation={operation}
+                    spec={spec}
+                    apiResponse={apiResponse}
+                    isLoading={isLoading}
+                    error={error}
+                  />
+                )
+              })()
+            }
+          />
+        </div>
       </div>
     </ErrorBoundary>
   )

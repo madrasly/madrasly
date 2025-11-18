@@ -16,6 +16,7 @@ interface SidebarProps {
     image?: string
   }
   openApiSpec?: any
+  onClose?: () => void  // Callback to close mobile menu
 }
 
 const STORAGE_KEY_SECTIONS = 'sidebar-expanded-sections'
@@ -67,7 +68,7 @@ function saveExpandedSubsections(subsections: Set<string>) {
   }
 }
 
-export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: SidebarProps) {
+export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec, onClose }: SidebarProps) {
   const router = useRouter()
   const [isExpanded, setIsExpanded] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -81,32 +82,32 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
   // Save expanded state before search
   const savedExpandedSections = useRef<Set<number> | null>(null)
   const savedExpandedSubsections = useRef<Set<string> | null>(null)
-  
+
   // Create searchable endpoints and search index
   const searchableEndpoints = useMemo(() => {
     return createSearchableEndpoints(navItems, openApiSpec)
   }, [navItems, openApiSpec])
-  
+
   const searchIndex = useMemo(() => {
     return createSearchIndex(searchableEndpoints)
   }, [searchableEndpoints])
-  
+
   // Save expanded state before search starts
   useEffect(() => {
     const isSearching = debouncedSearchQuery.trim().length > 0
     const wasSearching = savedExpandedSections.current !== null
-    
+
     // Save state when starting to search (before it gets modified)
     if (isSearching && !wasSearching) {
       savedExpandedSections.current = new Set(expandedSections)
       savedExpandedSubsections.current = new Set(expandedSubsections)
     }
   }, [debouncedSearchQuery, expandedSections, expandedSubsections])
-  
+
   // Restore expanded state when search ends
   useEffect(() => {
     const isSearching = debouncedSearchQuery.trim().length > 0
-    
+
     // Restore state when clearing search
     if (!isSearching && savedExpandedSections.current !== null && savedExpandedSubsections.current !== null) {
       setExpandedSections(savedExpandedSections.current)
@@ -117,35 +118,35 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
       savedExpandedSubsections.current = null
     }
   }, [debouncedSearchQuery])
-  
+
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery)
     }, 200)
-    
+
     return () => clearTimeout(timer)
   }, [searchQuery])
-  
+
   // Perform search
   const searchResults = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
       return new Set<string>()
     }
-    
+
     const results = searchEndpoints(searchIndex, debouncedSearchQuery)
     return new Set(results.map(r => r.endpointKey).filter(Boolean))
   }, [searchIndex, debouncedSearchQuery])
-  
+
   // Auto-expand sections with matching results (only during search)
   useEffect(() => {
     if (!debouncedSearchQuery.trim()) {
       return
     }
-    
+
     const matchingSections = new Set<number>()
     const matchingSubsections = new Set<string>()
-    
+
     searchableEndpoints.forEach(endpoint => {
       if (searchResults.has(endpoint.endpointKey)) {
         matchingSections.add(endpoint.sectionIndex)
@@ -154,53 +155,53 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
         }
       }
     })
-    
+
     // Only expand matching sections during search (don't merge with existing)
     setExpandedSections(matchingSections)
     setExpandedSubsections(matchingSubsections)
   }, [debouncedSearchQuery, searchResults, searchableEndpoints])
-  
+
   // Filter navItems based on search
   const filteredNavItems = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
       return navItems
     }
-    
+
     return navItems.map((section, sectionIndex) => {
       const filteredItems = section.items
         .map((item, itemIndex) => {
           const itemMatches = item.endpointKey && searchResults.has(item.endpointKey)
-          const hasMatchingSubItems = item.items?.some(subItem => 
+          const hasMatchingSubItems = item.items?.some(subItem =>
             subItem.endpointKey && searchResults.has(subItem.endpointKey)
           )
-          
+
           if (itemMatches || hasMatchingSubItems) {
             const filteredSubItems = item.items?.filter(subItem =>
               !subItem.endpointKey || searchResults.has(subItem.endpointKey)
             )
-            
+
             return {
               ...item,
               items: filteredSubItems
             }
           }
-          
+
           return null
         })
         .filter(Boolean) as typeof section.items
-      
+
       // Only include section if it has matching items
       if (filteredItems.length === 0) {
         return null
       }
-      
+
       return {
         ...section,
         items: filteredItems
       }
     }).filter(Boolean) as SidebarNavItem[]
   }, [navItems, searchResults, debouncedSearchQuery])
-  
+
   // Helper function to check if an item matches search
   const itemMatchesSearch = (endpointKey?: string) => {
     if (!debouncedSearchQuery.trim() || !endpointKey) {
@@ -287,7 +288,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
         saveExpandedSections(next)
         return next
       })
-      
+
       if (subsectionKeyToExpand) {
         setExpandedSubsections(prev => {
           const next = new Set(prev)
@@ -300,13 +301,13 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
   }, [navItems, activeEndpoint, debouncedSearchQuery])
 
   return (
-    <div 
+    <div
       className={`${isExpanded ? 'w-[240px]' : 'w-[60px]'} border-r border-default flex flex-col transition-all duration-200 ease-in-out h-full relative`}
       style={{ backgroundColor: 'var(--sidebar)' }}
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="absolute -right-2.5 top-[60px] w-5 h-5 border border-default rounded-full flex items-center justify-center hover:border-hover z-10 shadow-sm transition-colors"
+        className="hidden md:flex absolute -right-2.5 top-[60px] w-5 h-5 border border-default rounded-full items-center justify-center hover:border-hover z-10 shadow-sm transition-colors"
         style={{ backgroundColor: 'var(--sidebar)' }}
       >
         {isExpanded ? (
@@ -319,13 +320,16 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
       {workspace && (
         <div className="px-4 py-4 flex-shrink-0">
           {isExpanded ? (
-            <button 
-              onClick={() => router.push('/')}
-              className="flex items-center gap-2 text-primary w-full px-2 py-1 rounded hover:bg-hover transition-colors"
+            <button
+              onClick={() => {
+                onClose?.()
+                router.push('/')
+              }}
+              className="flex items-center gap-2.5 w-full px-2 py-2 rounded hover:bg-hover transition-colors group overflow-hidden"
             >
               {workspace.image ? (
-                <img 
-                  src={workspace.image} 
+                <img
+                  src={workspace.image}
                   alt={workspace.name}
                   className="w-5 h-5 rounded flex-shrink-0 object-contain"
                   onError={(e) => {
@@ -337,7 +341,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
                   }}
                 />
               ) : null}
-              <div 
+              <div
                 className={`w-5 h-5 bg-primary rounded flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0 ${workspace.image ? 'hidden' : ''}`}
               >
                 {workspace.icon}
@@ -346,12 +350,15 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
             </button>
           ) : (
             <button
-              onClick={() => router.push('/')}
+              onClick={() => {
+                onClose?.()
+                router.push('/')
+              }}
               className="w-8 h-8 bg-primary rounded flex items-center justify-center text-primary-foreground text-sm font-bold mx-auto hover:bg-primary/90 transition-colors overflow-hidden"
             >
               {workspace.image ? (
-                <img 
-                  src={workspace.image} 
+                <img
+                  src={workspace.image}
                   alt={workspace.name}
                   className="w-full h-full object-contain rounded"
                   onError={(e) => {
@@ -368,7 +375,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
           )}
         </div>
       )}
-      
+
       {isExpanded && (
         <div className="px-3 pb-3 flex-shrink-0">
           <div className="relative">
@@ -379,7 +386,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-8 py-2 text-sm border border-default rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              style={{ 
+              style={{
                 backgroundColor: 'var(--background)',
                 color: 'var(--foreground)'
               }}
@@ -396,7 +403,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
           </div>
         </div>
       )}
-      
+
       <nav className="flex-1 px-3 overflow-y-auto overflow-x-hidden pb-2">
         {filteredNavItems.map((section, filteredIndex) => {
           // Find the original section index in navItems by matching title and items
@@ -404,7 +411,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
             if (s.title !== section.title) return false
             // If both have items, check if they share at least one endpoint
             if (section.items.length > 0 && s.items.length > 0) {
-              return section.items.some(item => 
+              return section.items.some(item =>
                 s.items.some(origItem => origItem.endpointKey === item.endpointKey)
               )
             }
@@ -412,7 +419,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
           })
           const sectionIndex = originalSectionIndex >= 0 ? originalSectionIndex : filteredIndex
           const isSectionExpanded = expandedSections.has(sectionIndex)
-          
+
           return (
             <div key={sectionIndex}>
               {isExpanded && section.title && (
@@ -430,7 +437,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
                   )}
                 </button>
               )}
-              
+
               {isSectionExpanded && (
                 <div className="space-y-0.5 mb-6">
                   {section.items.map((item, filteredItemIndex) => {
@@ -446,7 +453,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
                     const isSubsectionExpanded = expandedSubsections.has(subsectionKey)
                     const itemMatches = itemMatchesSearch(item.endpointKey)
                     const isHighlighted = debouncedSearchQuery.trim() && itemMatches
-                    
+
                     return (
                       <div key={itemIndex}>
                         <div className="flex items-center">
@@ -457,9 +464,7 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
                             >
                               {isExpanded && (
                                 <>
-                                  <span className={`text-sm whitespace-nowrap flex items-center gap-2 min-w-0 ${
-                                    isHighlighted ? 'text-primary font-medium' : 'text-secondary group-hover:text-primary'
-                                  }`}>
+                                  <span className={`text-sm whitespace-nowrap flex items-center gap-2 min-w-0 ${isHighlighted ? 'text-primary font-medium' : 'text-secondary group-hover:text-primary'}`}>
                                     {item.label}
                                     {item.badge && (
                                       <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-medium">
@@ -478,17 +483,13 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
                           ) : (
                             <button
                               onClick={item.onClick}
-                              className={`flex items-center gap-3 w-full px-2 py-2 rounded ${
-                                item.active ? 'text-primary bg-hover' : isHighlighted ? 'text-primary' : 'text-secondary'
-                              } ${isExpanded ? '' : 'justify-center'} ${item.onClick ? 'hover:bg-hover hover:text-primary cursor-pointer' : ''}`}
+                              className={`flex items-center gap-3 w-full px-2 py-2 rounded ${item.active ? 'text-primary bg-hover' : isHighlighted ? 'text-primary' : 'text-secondary'} ${isExpanded ? '' : 'justify-center'} ${item.onClick ? 'hover:bg-hover hover:text-primary cursor-pointer' : ''}`}
                             >
                               {isExpanded && (
-                                <span className={`text-sm whitespace-nowrap flex items-center gap-2 ${
-                                  isHighlighted ? 'font-medium' : ''
-                                }`}>
+                                <span className={`text-sm whitespace-nowrap flex items-center gap-2 ${isHighlighted ? 'font-medium' : ''}`}>
                                   {item.label}
                                   {item.badge && (
-                                      <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-medium">
+                                    <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-medium">
                                       {item.badge}
                                     </span>
                                   )}
@@ -504,18 +505,14 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
                               const SubExternalIcon = subItem.external
                               const subItemMatches = itemMatchesSearch(subItem.endpointKey)
                               const isSubHighlighted = debouncedSearchQuery.trim() && subItemMatches
-                              
+
                               return (
                                 <button
                                   key={subItemIndex}
                                   onClick={subItem.onClick}
-                                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm ${
-                                    subItem.active ? 'text-primary bg-hover' : isSubHighlighted ? 'text-primary' : 'text-secondary'
-                                  } ${subItem.onClick ? 'hover:bg-hover hover:text-primary cursor-pointer' : ''}`}
+                                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm ${subItem.active ? 'text-primary bg-hover' : isSubHighlighted ? 'text-primary' : 'text-secondary'} ${subItem.onClick ? 'hover:bg-hover hover:text-primary cursor-pointer' : ''}`}
                                 >
-                                  <span className={`whitespace-nowrap flex items-center gap-2 ${
-                                    isSubHighlighted ? 'font-medium' : ''
-                                  }`}>
+                                  <span className={`whitespace-nowrap flex items-center gap-2 ${isSubHighlighted ? 'font-medium' : ''}`}>
                                     {subItem.label}
                                     {subItem.badge && (
                                       <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-medium">
@@ -544,12 +541,12 @@ export function Sidebar({ navItems, activeEndpoint, workspace, openApiSpec }: Si
           </div>
         )}
       </nav>
-      
+
       {isExpanded && (
         <div className="border-t border-border px-3 py-3 flex-shrink-0 space-y-1" style={{ backgroundColor: 'var(--sidebar)' }}>
           <ThemeSwitcher />
           {!debouncedSearchQuery.trim() && (
-            <a 
+            <a
               href="https://docs.google.com/forms/d/e/1FAIpQLScVYNtp3-uOQ-WQNGZ905bIxIfOjW29GyZtTnx2t9yUV_xuIQ/viewform?usp=dialog"
               target="_blank"
               rel="noopener noreferrer"

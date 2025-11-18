@@ -6,7 +6,8 @@ import { Sidebar } from '@/components/api-playground/sidebar'
 import { parseSidebarConfig } from '@/lib/openapi-sidebar-parser'
 import { generateSlugFromEndpoint } from '@/lib/slug-utils'
 import { extractDocsUrl } from '@/lib/utils'
-import { ArrowRight, ExternalLink, Search } from 'lucide-react'
+import { ArrowRight, ExternalLink, Search, Menu, X } from 'lucide-react'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import openApiSpec from '../openapi.json'
 import { createSearchableEndpoints, createSearchIndex, searchEndpoints } from '@/lib/endpoint-search'
 
@@ -27,7 +28,7 @@ function extractExampleContent(operation: any, spec: any): { exampleContent?: an
 
   // Try to get request body example
   const requestBodyContent = operation.requestBody?.content
-  const contentType = requestBodyContent 
+  const contentType = requestBodyContent
     ? (requestBodyContent['application/json'] ? 'application/json' : Object.keys(requestBodyContent)[0])
     : null
   if (contentType && requestBodyContent?.[contentType]) {
@@ -57,8 +58,8 @@ function extractExampleContent(operation: any, spec: any): { exampleContent?: an
   // Try to get response example
   const successResponse = operation.responses?.['200'] || operation.responses?.['201'] || operation.responses?.['204']
   const responseContentTypes = successResponse?.content ? Object.keys(successResponse.content) : []
-  const responseContentType = responseContentTypes.includes('application/json') 
-    ? 'application/json' 
+  const responseContentType = responseContentTypes.includes('application/json')
+    ? 'application/json'
     : (responseContentTypes[0] || null)
   if (responseContentType && successResponse?.content?.[responseContentType]) {
     const responseContent = successResponse.content[responseContentType]
@@ -166,6 +167,7 @@ export default function LandingPage() {
   const [popularEndpoints, setPopularEndpoints] = useState<PopularEndpoint[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PopularEndpoint[]>([])
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Create search index
   const searchableEndpoints = useMemo(() => {
@@ -180,9 +182,9 @@ export default function LandingPage() {
 
   useEffect(() => {
     const sidebar = parseSidebarConfig(
-      { 
-        ...openApiSpec['x-ui-config']?.sidebar, 
-        endpoints: openApiSpec['x-ui-config']?.endpoints 
+      {
+        ...openApiSpec['x-ui-config']?.sidebar,
+        endpoints: openApiSpec['x-ui-config']?.endpoints
       },
       (key: string) => {
         const slug = generateSlugFromEndpoint(openApiSpec as any, key)
@@ -200,9 +202,9 @@ export default function LandingPage() {
     const endpoints = openApiSpec['x-ui-config']?.endpoints || {}
     const uiConfig = openApiSpec['x-ui-config'] as any
     const popularKeys = uiConfig?.popularEndpoints || []
-    
+
     let endpointsToShow: PopularEndpoint[] = []
-    
+
     if (popularKeys.length > 0) {
       const endpointsRecord = endpoints as Record<string, any>
       const paths = openApiSpec.paths as Record<string, Record<string, any>> | undefined
@@ -212,7 +214,7 @@ export default function LandingPage() {
           if (!endpoint) return null
           const operation = paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]
           const { exampleContent, responseExample } = extractExampleContent(operation, openApiSpec)
-          
+
           return {
             key,
             title: endpoint.title,
@@ -232,7 +234,7 @@ export default function LandingPage() {
         const endpoint = endpointsRecord[key]
         const operation = paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]
         const { exampleContent, responseExample } = extractExampleContent(operation, openApiSpec)
-        
+
         return {
           key,
           title: endpoint.title,
@@ -244,7 +246,7 @@ export default function LandingPage() {
         }
       })
     }
-    
+
     setPopularEndpoints(endpointsToShow)
   }, [router])
 
@@ -257,7 +259,7 @@ export default function LandingPage() {
 
     const results = searchEndpoints(searchIndex, searchQuery)
     const endpointKeys = new Set(results.map(r => r.endpointKey).filter(Boolean))
-    
+
     const endpoints = openApiSpec['x-ui-config']?.endpoints || {}
     const endpointsRecord = endpoints as Record<string, any>
     const paths = openApiSpec.paths as Record<string, Record<string, any>> | undefined
@@ -268,7 +270,7 @@ export default function LandingPage() {
         if (!endpoint) return null
         const operation = paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]
         const { exampleContent, responseExample } = extractExampleContent(operation, openApiSpec)
-        
+
         return {
           key,
           title: endpoint.title,
@@ -280,7 +282,7 @@ export default function LandingPage() {
         }
       })
       .filter(Boolean) as PopularEndpoint[]
-    
+
     setSearchResults(matchedEndpoints)
   }, [searchQuery, searchIndex])
 
@@ -315,13 +317,41 @@ export default function LandingPage() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar 
-        navItems={sidebarConfig.navItems}
-        workspace={sidebarConfig.workspace}
-        openApiSpec={openApiSpec}
-      />
+      {/* Mobile Header with Hamburger Menu */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-background border-b border-default px-4 py-3 flex items-center justify-between">
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 hover:bg-hover rounded-lg transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu size={24} className="text-secondary" />
+        </button>
+        <h1 className="text-lg font-semibold text-primary">{apiTitle}</h1>
+        <div className="w-10" /> {/* Spacer for balance */}
+      </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col bg-background">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex">
+        <Sidebar
+          navItems={sidebarConfig.navItems}
+          workspace={sidebarConfig.workspace}
+          openApiSpec={openApiSpec}
+        />
+      </div>
+
+      {/* Mobile Sheet Sidebar */}
+      <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 w-[280px]">
+          <Sidebar
+            navItems={sidebarConfig.navItems}
+            workspace={sidebarConfig.workspace}
+            openApiSpec={openApiSpec}
+            onClose={() => setIsMobileMenuOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <div className="flex-1 overflow-hidden flex flex-col bg-background pt-16 md:pt-0">
         {/* Top Bar - Compact */}
         <div className="px-8 pt-6 pb-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
@@ -331,9 +361,9 @@ export default function LandingPage() {
                 <span className="text-xs text-tertiary">v{apiVersion}</span>
               )}
               {docsUrl && (
-                <a 
-                  href={docsUrl} 
-                  target="_blank" 
+                <a
+                  href={docsUrl}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-link flex items-center gap-1"
                 >
@@ -379,7 +409,7 @@ export default function LandingPage() {
                     const operation = paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]
                     const summary = operation?.summary || endpoint.title
                     const description = operation?.description || endpoint.description
-                    
+
                     return (
                       <div
                         key={endpoint.key}
@@ -395,9 +425,9 @@ export default function LandingPage() {
                               {endpoint.path}
                             </code>
                           </div>
-                          <ArrowRight 
-                            size={14} 
-                            className="text-tertiary group-hover:text-link transition-colors flex-shrink-0" 
+                          <ArrowRight
+                            size={14}
+                            className="text-tertiary group-hover:text-link transition-colors flex-shrink-0"
                           />
                         </div>
                         <h3 className="text-sm font-semibold text-primary mb-1">

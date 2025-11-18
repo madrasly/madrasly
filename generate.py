@@ -222,6 +222,7 @@ def copy_template_files(output_dir: Path, template_dir: Path = None, skip_layout
         ('src/components/ui/toast.tsx', 'components/ui/toast.tsx'),
         ('src/components/ui/toaster.tsx', 'components/ui/toaster.tsx'),
         ('src/components/ui/tooltip.tsx', 'components/ui/tooltip.tsx'),
+        ('src/components/ui/sheet.tsx', 'components/ui/sheet.tsx'),
         ('src/components/theme-provider.tsx', 'components/theme-provider.tsx'),
         ('src/components/theme-switcher.tsx', 'components/theme-switcher.tsx'),
         ('src/hooks/use-toast.ts', 'hooks/use-toast.ts'),

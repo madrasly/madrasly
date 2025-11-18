@@ -1,25 +1,28 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { Code, FileText } from 'lucide-react'
 
 interface ResizablePanelProps {
-  left: React.ReactNode
+  left: React.ReactNode | ((props: { onRunClick: () => void }) => React.ReactNode)
   right: React.ReactNode
   defaultWidth?: number
   minWidth?: number
   maxWidth?: number
+  onRunClick?: () => void  // Callback when run button triggers code view
 }
 
-export function ResizablePanel({ left, right, defaultWidth = 700, minWidth = 400, maxWidth = 1200 }: ResizablePanelProps) {
+export function ResizablePanel({ left, right, defaultWidth = 700, minWidth = 400, maxWidth = 1200, onRunClick }: ResizablePanelProps) {
   const [rightPanelWidth, setRightPanelWidth] = useState(defaultWidth)
   const [isDragging, setIsDragging] = useState(false)
+  const [showCode, setShowCode] = useState(false) // false = form, true = code
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return
-      
+
       const deltaX = e.clientX - dragStartX.current
       const newWidth = Math.max(minWidth, Math.min(maxWidth, dragStartWidth.current - deltaX))
       setRightPanelWidth(newWidth)
@@ -50,26 +53,54 @@ export function ResizablePanel({ left, right, defaultWidth = 700, minWidth = 400
     dragStartWidth.current = rightPanelWidth
   }
 
+  // Function to switch to code view (called when Run is clicked)
+  const handleSwitchToCode = () => {
+    setShowCode(true)
+    onRunClick?.() // Call parent callback if provided
+  }
+
   return (
-    <div className="flex flex-1 min-w-0">
-      <div className="flex-1 bg-background overflow-auto min-w-0 flex-shrink">
-        {left}
+    <div className="flex flex-col md:flex-row flex-1 min-w-0 md:h-full">
+      {/* Mobile toggle button - fixed at bottom */}
+      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <button
+          onClick={() => setShowCode(!showCode)}
+          className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-full shadow-2xl hover:bg-primary/90 transition-all font-semibold text-base border-2 border-primary-foreground/20"
+        >
+          {showCode ? (
+            <>
+              <FileText size={22} />
+              <span>Form</span>
+            </>
+          ) : (
+            <>
+              <Code size={22} />
+              <span>Code</span>
+            </>
+          )}
+        </button>
       </div>
 
-      <div 
-        className="w-1 bg-default hover:bg-primary cursor-col-resize transition-colors relative group"
+      {/* Left Panel (Form) */}
+      <div className={`${showCode ? 'hidden' : 'block'} md:block bg-background overflow-auto min-w-0 flex-shrink order-1 md:order-none min-h-0 flex-1 md:flex-1 pb-24 md:pb-0`}>
+        {typeof left === 'function' ? left({ onRunClick: handleSwitchToCode }) : left}
+      </div>
+
+      {/* Desktop drag handle */}
+      <div
+        className="hidden md:block w-1 bg-default hover:bg-primary cursor-col-resize transition-colors relative group flex-shrink-0"
         onMouseDown={handleDragStart}
       >
         <div className="absolute inset-0 w-3 -left-1 cursor-col-resize" />
       </div>
 
-      <div 
-        className="bg-code-editor text-white relative flex flex-col"
-        style={{ width: `${rightPanelWidth}px` }}
+      {/* Right Panel (Code) */}
+      <div
+        className={`${showCode ? 'block' : 'hidden'} md:block bg-code-editor text-white relative flex flex-col order-2 md:order-none flex-shrink-0 w-full md:w-auto h-full md:h-auto pb-24 md:pb-0`}
+        style={{ width: typeof window !== 'undefined' && window.innerWidth >= 768 ? `${rightPanelWidth}px` : '100%' }}
       >
         {right}
       </div>
     </div>
   )
 }
-
