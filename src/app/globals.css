@@ -242,6 +242,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html,
+  body {
+    @apply h-screen overflow-hidden;
+  }
   body {
     @apply bg-background text-foreground;
   }
