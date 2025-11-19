@@ -1,6 +1,7 @@
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
 import { writeFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
 import type { GeneratorConfig, GenerationResult } from './types/index.js';
 import { loadOpenAPISpec } from './modules/spec-loader.js';
 import { ensureUIConfig } from './modules/config-generator.js';
@@ -96,11 +97,19 @@ export async function generatePlayground(
 
 
         // 7. Copy template files
-        // Template dir should be the 'src' directory in the package
-        // When running from dist/generator.js, we want to go up to package root then into src
-        // dist/generator.js -> .. -> package root -> src
-        const generatorDir = dirname(dirname(new URL(import.meta.url).pathname));
-        const templateDir = join(generatorDir, 'src');
+        console.log('Copying template files...');
+
+        // Try bundled templates first (for npm install), then fall back to monorepo structure
+        const __filename = fileURLToPath(import.meta.url);
+        const distDir = dirname(__filename); // packages/generator/dist
+        const generatorDir = dirname(distDir); // packages/generator
+        const bundledTemplateDir = join(generatorDir, 'templates');
+        const monorepoTemplateDir = join(generatorDir, '..', '..');
+
+        const templateDir = existsSync(bundledTemplateDir)
+            ? bundledTemplateDir
+            : monorepoTemplateDir;
+
         await copyTemplateFiles(templateDir, tempOutputDir, { skipLayout: true });
         console.log('✓ Template files copied');
 

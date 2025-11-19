@@ -136,3 +136,4 @@ dist
 .pnp.*
 /coingecko
 /examples/test
+/examples/coingecko
