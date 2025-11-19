@@ -136,3 +136,5 @@ dist
 .pnp.*
 /coingecko
 /examples/test
+examples/.DS_Store
+.DS_Store
