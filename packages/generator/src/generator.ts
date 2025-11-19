@@ -96,10 +96,11 @@ export async function generatePlayground(
 
 
         // 7. Copy template files
-        console.log('Copying template files...');
-        // Template dir should be the repo root (2 levels up from packages/generator/dist)
+        // Template dir should be the 'src' directory in the package
+        // When running from dist/generator.js, we want to go up to package root then into src
+        // dist/generator.js -> .. -> package root -> src
         const generatorDir = dirname(dirname(new URL(import.meta.url).pathname));
-        const templateDir = join(generatorDir, '..', '..');
+        const templateDir = join(generatorDir, 'src');
         await copyTemplateFiles(templateDir, tempOutputDir, { skipLayout: true });
         console.log('✓ Template files copied');
 
