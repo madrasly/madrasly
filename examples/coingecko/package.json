@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "preinstall": "corepack enable && corepack prepare pnpm@10.19.0 --activate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -33,7 +32,7 @@
     "@radix-ui/react-separator": "1.1.1",
     "@radix-ui/react-slider": "1.2.2",
     "@radix-ui/react-slot": "1.1.1",
-    "@radix-ui/react-switch": "1.1.1",
+    "@radix-ui/react-switch": "latest",
     "@radix-ui/react-tabs": "1.1.2",
     "@radix-ui/react-toast": "1.2.4",
     "@radix-ui/react-toggle": "1.1.1",
