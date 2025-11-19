@@ -8,7 +8,7 @@ import { generateSlugFromEndpoint } from '@/lib/slug-utils'
 import { extractDocsUrl } from '@/lib/utils'
 import { ArrowRight, ExternalLink, Search, Menu, X } from 'lucide-react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import openApiSpec from '../openapi.json'
+import { useOpenAPISpec } from '@/lib/use-openapi-spec'
 import { createSearchableEndpoints, createSearchIndex, searchEndpoints } from '@/lib/endpoint-search'
 
 interface PopularEndpoint {
@@ -163,6 +163,7 @@ function generateVisualPreview(endpoint: PopularEndpoint, operation: any, spec: 
 
 export default function LandingPage() {
   const router = useRouter()
+  const { spec: openApiSpec, loading } = useOpenAPISpec()
   const [sidebarConfig, setSidebarConfig] = useState<any>(null)
   const [popularEndpoints, setPopularEndpoints] = useState<PopularEndpoint[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -171,9 +172,9 @@ export default function LandingPage() {
 
   // Create search index
   const searchableEndpoints = useMemo(() => {
-    if (!sidebarConfig?.navItems) return []
+    if (!sidebarConfig?.navItems || !openApiSpec) return []
     return createSearchableEndpoints(sidebarConfig.navItems, openApiSpec)
-  }, [sidebarConfig])
+  }, [sidebarConfig, openApiSpec])
 
   const searchIndex = useMemo(() => {
     if (searchableEndpoints.length === 0) return null
@@ -181,6 +182,8 @@ export default function LandingPage() {
   }, [searchableEndpoints])
 
   useEffect(() => {
+    if (!openApiSpec || loading) return
+
     const sidebar = parseSidebarConfig(
       {
         ...openApiSpec['x-ui-config']?.sidebar,
@@ -248,7 +251,7 @@ export default function LandingPage() {
     }
 
     setPopularEndpoints(endpointsToShow)
-  }, [router])
+  }, [router, openApiSpec, loading])
 
   // Handle search
   useEffect(() => {
@@ -286,7 +289,7 @@ export default function LandingPage() {
     setSearchResults(matchedEndpoints)
   }, [searchQuery, searchIndex])
 
-  if (!sidebarConfig) {
+  if (loading || !openApiSpec || !sidebarConfig) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>
   }
 

@@ -17,7 +17,7 @@ import { FileText, Menu, X } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 // Note: openApiSpec should be dereferenced (all $refs resolved) at generation time
 // using @apidevtools/swagger-parser. The generator script should handle this.
-import openApiSpec from '../../openapi.json'
+import { useOpenAPISpec } from '@/lib/use-openapi-spec'
 import LandingPage from '../landing-page'
 
 export default function SlugPage() {
@@ -25,6 +25,7 @@ export default function SlugPage() {
   const router = useRouter()
   const pathname = usePathname()
   const slug = params?.slug as string[] | undefined
+  const { spec: openApiSpec, loading: specLoading } = useOpenAPISpec()
 
   // If we're on the root path, show landing page instead
   if (pathname === '/') {
@@ -49,6 +50,9 @@ export default function SlugPage() {
   }, [pathname])
 
   useEffect(() => {
+    // Wait for spec to load
+    if (!openApiSpec || specLoading) return
+
     // Don't handle empty slug - redirect to root to let page.tsx handle it (landing page)
     if (!slug || slug.length === 0) {
       router.replace('/')
@@ -123,7 +127,7 @@ export default function SlugPage() {
     }
 
     setSidebarConfig(sidebar)
-  }, [slug, router])
+  }, [slug, router, openApiSpec, specLoading])
 
   // Extract operation and spec for CodeEditor (must be before any conditional returns)
   const operation = useMemo(() => {
@@ -204,7 +208,7 @@ export default function SlugPage() {
     return null
   }
 
-  if (!endpointConfig || !sidebarConfig) {
+  if (specLoading || !openApiSpec || !endpointConfig || !sidebarConfig) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>
   }
 

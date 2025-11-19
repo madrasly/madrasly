@@ -94,6 +94,56 @@ export default function RootLayout({
 }
 
 /**
+ * Render API route for OpenAPI spec
+ */
+export function renderOpenAPISpecRoute(): string {
+  return `import { readFileSync } from 'fs'
+import { join } from 'path'
+import { NextResponse } from 'next/server'
+
+export async function GET() {
+  try {
+    const specPath = join(process.cwd(), 'openapi.json')
+    const spec = JSON.parse(readFileSync(specPath, 'utf-8'))
+    return NextResponse.json(spec)
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to load OpenAPI spec' },
+      { status: 500 }
+    )
+  }
+}
+`;
+}
+
+/**
+ * Render hook for loading OpenAPI spec
+ */
+export function renderUseOpenAPISpecHook(): string {
+  return `'use client'
+import { useState, useEffect } from 'react'
+
+export function useOpenAPISpec() {
+  const [spec, setSpec] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/openapi-spec')
+      .then(r => r.json())
+      .then(setSpec)
+      .catch(err => {
+        console.error('Failed to load OpenAPI spec:', err)
+        setSpec(null)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  return { spec, loading }
+}
+`;
+}
+
+/**
  * Render page.tsx with endpoint configuration
  */
 export function renderPage(_endpoints: string[], _firstEndpoint: string): string {
@@ -104,15 +154,18 @@ import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/api-playground/sidebar'
 import { parseSidebarConfig } from '@/lib/openapi-sidebar-parser'
 import { generateSlugFromEndpoint } from '@/lib/slug-utils'
-import openApiSpec from '../openapi.json'
+import { useOpenAPISpec } from '@/lib/use-openapi-spec'
 import LandingPage from './landing-page'
 
 export default function ApiPlaygroundPage() {
   const router = useRouter()
+  const { spec: openApiSpec, loading } = useOpenAPISpec()
   const [sidebarConfig, setSidebarConfig] = useState<any>(null)
   const [activeEndpoint, setActiveEndpoint] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!openApiSpec || loading) return
+
     const sidebar = parseSidebarConfig(
       { 
         ...openApiSpec['x-ui-config']?.sidebar, 
@@ -129,7 +182,11 @@ export default function ApiPlaygroundPage() {
       openApiSpec as any
     )
     setSidebarConfig(sidebar)
-  }, [router])
+  }, [router, openApiSpec, loading])
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
 
   // Show landing page if no active endpoint
   if (!activeEndpoint && sidebarConfig) {

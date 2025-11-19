@@ -5,15 +5,18 @@ import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/api-playground/sidebar'
 import { parseSidebarConfig } from '@/lib/openapi-sidebar-parser'
 import { generateSlugFromEndpoint } from '@/lib/slug-utils'
-import openApiSpec from '../openapi.json'
+import { useOpenAPISpec } from '@/lib/use-openapi-spec'
 import LandingPage from './landing-page'
 
 export default function ApiPlaygroundPage() {
   const router = useRouter()
+  const { spec: openApiSpec, loading } = useOpenAPISpec()
   const [sidebarConfig, setSidebarConfig] = useState<any>(null)
   const [activeEndpoint, setActiveEndpoint] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!openApiSpec || loading) return
+
     const sidebar = parseSidebarConfig(
       { 
         ...openApiSpec['x-ui-config']?.sidebar, 
@@ -30,7 +33,11 @@ export default function ApiPlaygroundPage() {
       openApiSpec as any
     )
     setSidebarConfig(sidebar)
-  }, [router])
+  }, [router, openApiSpec, loading])
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
 
   // Show landing page if no active endpoint
   if (!activeEndpoint && sidebarConfig) {

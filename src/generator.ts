@@ -1,6 +1,6 @@
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
-import { writeFile } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import type { GeneratorConfig, GenerationResult } from './types/index.js';
 import { loadOpenAPISpec } from './modules/spec-loader.js';
@@ -13,6 +13,8 @@ import {
 import {
     renderLayout,
     renderPage,
+    renderOpenAPISpecRoute,
+    renderUseOpenAPISpecHook,
     renderPackageJson,
     renderTsConfig,
     renderNextConfig,
@@ -143,6 +145,15 @@ export async function generatePlayground(
 
         await writeFile(join(tempOutputDir, '.nvmrc'), '20\n');
         console.log('  ✓ .nvmrc');
+
+        // 9.5. Generate API route and hook for runtime spec loading
+        console.log('Generating runtime spec loading files...');
+        await mkdir(join(tempOutputDir, 'app', 'api', 'openapi-spec'), { recursive: true });
+        await writeFile(join(tempOutputDir, 'app', 'api', 'openapi-spec', 'route.ts'), renderOpenAPISpecRoute());
+        console.log('  ✓ app/api/openapi-spec/route.ts');
+        
+        await writeFile(join(tempOutputDir, 'lib', 'use-openapi-spec.ts'), renderUseOpenAPISpecHook());
+        console.log('  ✓ lib/use-openapi-spec.ts');
 
         // 10. Generate page components
         console.log('Generating page components...');
