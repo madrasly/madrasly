@@ -1,12 +1,8 @@
 name: Publish to npm
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to publish (e.g., 0.1.1, 0.2.0, 1.0.0)'
-        required: true
-        type: string
+  release:
+    types: [published]
 
 jobs:
   publish:
@@ -22,12 +18,6 @@ jobs:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
           
-      - name: Update package version
-        working-directory: packages/generator
-        run: |
-          npm version ${{ inputs.version }} --no-git-tag-version
-          echo "Updated version to ${{ inputs.version }}"
-          
       - name: Install dependencies
         working-directory: packages/generator
         run: npm install
@@ -36,18 +26,17 @@ jobs:
         working-directory: packages/generator
         run: npm run build
         
+      - name: Ensure version matches tag
+        working-directory: packages/generator
+        run: |
+          # Remove 'v' prefix from tag (e.g. v0.1.0 -> 0.1.0)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Publishing version $VERSION"
+          # Force package.json to match the release tag
+          npm version $VERSION --no-git-tag-version
+        
       - name: Publish to npm
         working-directory: packages/generator
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          
-      - name: Commit version change
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add packages/generator/package.json
-          git commit -m "chore: bump version to ${{ inputs.version }}"
-          git tag "v${{ inputs.version }}"
-          git push
-          git push --tags
