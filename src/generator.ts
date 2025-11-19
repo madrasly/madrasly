@@ -96,22 +96,17 @@ export async function generatePlayground(
         console.log('✓ Directory structure created');
 
 
-        // 7. Copy template files
+        // 7. Copy template files from bundled templates directory
         console.log('Copying template files...');
 
-        // Try bundled templates first (for npm install), then fall back to monorepo structure
         const __filename = fileURLToPath(import.meta.url);
-        const distDir = dirname(__filename); // packages/generator/dist
-        const generatorDir = dirname(distDir); // packages/generator
-        const bundledTemplateDir = join(generatorDir, 'templates');
-        const monorepoTemplateDir = join(generatorDir, '..', '..');
-
-        const templateDir = existsSync(bundledTemplateDir)
-            ? bundledTemplateDir
-            : monorepoTemplateDir;
+        const distDir = dirname(__filename); // dist/
+        const rootDir = dirname(distDir); // root directory
+        const templateDir = join(rootDir, 'templates');
 
         await copyTemplateFiles(templateDir, tempOutputDir, { skipLayout: true });
         console.log('✓ Template files copied');
+
 
 
         // 8. Generate layout.tsx

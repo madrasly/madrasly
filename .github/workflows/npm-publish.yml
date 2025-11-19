@@ -22,15 +22,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           
       - name: Install dependencies
-        working-directory: packages/generator
         run: npm install
         
       - name: Build package
-        working-directory: packages/generator
         run: npm run build
         
       - name: Ensure version matches tag
-        working-directory: packages/generator
         run: |
           # Remove 'v' prefix from tag (e.g. v0.1.0 -> 0.1.0)
           VERSION=${GITHUB_REF#refs/tags/v}
@@ -39,7 +36,6 @@ jobs:
           npm version $VERSION --no-git-tag-version
         
       - name: Publish to npm
-        working-directory: packages/generator
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -55,7 +51,6 @@ jobs:
           git checkout main
           
           # Update the file on main
-          cd packages/generator
           VERSION=${GITHUB_REF#refs/tags/v}
           npm version $VERSION --no-git-tag-version
           git add package.json

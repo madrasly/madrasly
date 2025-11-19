@@ -80,7 +80,7 @@ function regenerate() {
       console.log('   Using TypeScript generator...');
       command = 'node';
       args = [
-        path.join(__dirname, 'packages/generator/dist/cli.js'),
+        path.join(__dirname, 'dist/cli.js'),
         openapiFile,
         outputDir,
         '--force'
@@ -129,14 +129,14 @@ function regenerate() {
 
 const watchPaths = [
   openapiFile,
-  path.join(__dirname, 'packages/generator/src'),
-  path.join(__dirname, 'src')
+  path.join(__dirname, 'src'),
+  path.join(__dirname, 'templates')
 ];
 
 console.log('👀 Watching for changes...');
 console.log(`   - OpenAPI spec: ${openapiFile}`);
-console.log(`   - Generator: TypeScript (packages/generator)`);
-console.log(`   - Templates: ${path.join(__dirname, 'src')}`);
+console.log(`   - Generator source: ${path.join(__dirname, 'src')}`);
+console.log(`   - Templates: ${path.join(__dirname, 'templates')}`);
 console.log(`   - Output: ${outputDir}\n`);
 
 // Initial generation

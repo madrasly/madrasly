@@ -39,8 +39,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/Playground-Y/Playground-Y.git",
-        "directory": "packages/generator"
+        "url": "https://github.com/Playground-Y/Playground-Y.git"
     },
     "bugs": {
         "url": "https://github.com/Playground-Y/Playground-Y/issues"
