@@ -131,7 +131,7 @@ export default function SlugPage() {
 
   // Extract operation and spec for CodeEditor (must be before any conditional returns)
   const operation = useMemo(() => {
-    if (!endpointKey || !openApiSpec['x-ui-config']?.endpoints) {
+    if (!endpointKey || !openApiSpec || !openApiSpec['x-ui-config']?.endpoints) {
       return undefined
     }
     const endpoints = openApiSpec['x-ui-config'].endpoints as Record<string, any>
@@ -156,17 +156,19 @@ export default function SlugPage() {
       requestBody: openApiOperation.requestBody,
       security: openApiOperation.security,
     }
-  }, [endpointKey])
+  }, [endpointKey, openApiSpec])
 
-  const spec = useMemo(() => openApiSpec as any, [])
+  const spec = useMemo(() => openApiSpec as any, [openApiSpec])
 
   // Get auth config and security scheme
   const authConfig = useMemo(() => {
+    if (!openApiSpec) return { mode: 'manual' } as { mode?: 'automatic' | 'manual'; schemeName?: string }
     const config = openApiSpec['x-ui-config']?.auth || { mode: 'manual' }
     return config as { mode?: 'automatic' | 'manual'; schemeName?: string }
-  }, [])
+  }, [openApiSpec])
 
   const securityScheme = useMemo(() => {
+    if (!openApiSpec) return undefined
     const securitySchemes = openApiSpec.components?.securitySchemes as Record<string, any> | undefined
 
     // First try to get scheme from config
@@ -201,7 +203,7 @@ export default function SlugPage() {
     }
 
     return undefined
-  }, [authConfig.schemeName, operation])
+  }, [authConfig.schemeName, operation, openApiSpec])
 
   // Don't render anything if slug is empty - let root page handle it
   if (!slug || slug.length === 0) {

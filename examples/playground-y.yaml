@@ -1,0 +1,113 @@
+openapi: 3.0.0
+info:
+  title: Playground-Y
+  description: The official Playground-Y API to generate interactive playgrounds on demand.
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Returns the health status of the API.
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2023-10-27T10:00:00.000Z'
+  /api/generate:
+    post:
+      summary: Generate Playground
+      description: Generates a static API playground from an OpenAPI specification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                spec:
+                  type: string
+                  format: uri
+                  description: The URL to the OpenAPI specification (must be http:// or https://).
+                  example: 'https://api.example.com/openapi.json'
+                apiKey:
+                  type: string
+                  description: Pre-configure API key (stores in .env, hides auth field from users).
+                theme:
+                  type: string
+                  enum: [light, dark, coffee]
+                  description: Set default theme.
+                workspaceImage:
+                  type: string
+                  description: Workspace logo/image URL or file path.
+                includeDownload:
+                  type: string
+                  enum: ['true', 'false']
+                  default: 'true'
+                  description: Whether to generate and upload a downloadable ZIP file to Supabase. Defaults to true.
+                  example: 'true'
+                includePreview:
+                  type: string
+                  enum: ['true', 'false']
+                  default: 'true'
+                  description: Whether to deploy an interactive playground to Vercel. Defaults to true.
+                  example: 'true'
+              required:
+                - spec
+      responses:
+        '200':
+          description: Generation successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  previewUrl:
+                    type: string
+                    format: uri
+                    description: The URL to the live preview on Vercel (only included if includePreview is true).
+                  downloadUrl:
+                    type: string
+                    format: uri
+                    description: The URL to download the source code ZIP (only included if includeDownload is true).
+                  status:
+                    type: string
+                    description: Status of the generation process.
+                  message:
+                    type: string
+                    description: Human-readable message about the generation status.
+        '400':
+          description: Bad Request (missing spec, invalid URL, or both includeDownload and includePreview are false)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Internal Server Error (generation failed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  details:
+                    type: string

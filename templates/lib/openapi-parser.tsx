@@ -506,6 +506,69 @@ export function parseOpenAPIToConfig(spec: OpenAPISpec, endpointKey: string): Ap
     }
   }
 
+  // Finally, try extracting examples from parameters
+  if (examples.length === 0 && operation.parameters) {
+    // Collect all parameter examples
+    const parameterExamples: Record<string, Array<{ name: string; value: any }>> = {}
+
+    for (const param of operation.parameters) {
+      if (param.in === 'path') continue // Skip path parameters for examples
+
+      // Check for OpenAPI 3.0 examples object
+      const paramExamples = (param as any).examples
+      if (paramExamples && typeof paramExamples === 'object') {
+        for (const [exampleKey, exampleObj] of Object.entries(paramExamples)) {
+          const example = exampleObj as any
+          const exampleValue = example.value
+
+          if (exampleValue !== undefined) {
+            if (!parameterExamples[exampleKey]) {
+              parameterExamples[exampleKey] = []
+            }
+            parameterExamples[exampleKey].push({
+              name: param.name,
+              value: exampleValue
+            })
+          }
+        }
+      }
+    }
+
+    // Generate one example per parameter example set (using curl as the default)
+    for (const [exampleKey, paramValues] of Object.entries(parameterExamples)) {
+      // Build form data from parameter values
+      const exampleFormData: Record<string, any> = {}
+      for (const { name, value } of paramValues) {
+        exampleFormData[name] = value
+      }
+
+      // Generate code samples using the code generator
+      const exampleCodeSamples = generateCodeSamples(
+        {
+          method: uiConfig.method.toLowerCase(),
+          path: uiConfig.path,
+          parameters: operation.parameters,
+          requestBody: operation.requestBody,
+          security: operation.security,
+        },
+        spec,
+        uiConfig.title,
+        exampleFormData // Pass the example data
+      )
+
+      // Use the first code sample (curl) for the example
+      if (exampleCodeSamples.length > 0) {
+        const curlSample = exampleCodeSamples.find(s => s.language === 'curl') || exampleCodeSamples[0]
+        examples.push({
+          label: exampleKey,
+          value: exampleKey,
+          language: curlSample.language,
+          code: curlSample.code
+        })
+      }
+    }
+  }
+
 
   return {
     title: uiConfig.title,
