@@ -52,15 +52,15 @@ export function generateSlugFromEndpoint(
 
   const tags = operation.tags || []
   const summary = operation.summary || ''
-  
+
   if (tags.length === 0 || !summary) {
     // Fallback to endpoint key if no tag/summary
     return `/${endpointKey}`
   }
 
-  const tag = tags[0].toLowerCase()
+  const tag = tags[0].toLowerCase().replace(/\s+/g, '-')
   const summarySlug = summaryToSlugSegment(summary)
-  
+
   return `/${tag}/${summarySlug}`
 }
 
@@ -91,7 +91,7 @@ export function findEndpointBySlug(
   if (!tag || !summarySlug) {
     return null
   }
-  
+
   const tagLower = tag.toLowerCase()
   const normalizedSummaryFromSlug = slugSegmentToNormalizedSummary(summarySlug)
 
@@ -102,19 +102,19 @@ export function findEndpointBySlug(
     const path = endpoint.path
     const method = endpoint.method.toLowerCase()
     const operation = spec.paths?.[path]?.[method]
-    
+
     if (!operation) continue
 
     const tags = operation.tags || []
     const operationSummary = operation.summary || ''
-    
-    // Check if tag matches (case-insensitive)
-    const matchesTag = tags.length > 0 && tags.some((t: string) => 
-      t.toLowerCase() === tagLower
+
+    // Check if tag matches (case-insensitive, with spaces converted to hyphens)
+    const matchesTag = tags.length > 0 && tags.some((t: string) =>
+      t.toLowerCase().replace(/\s+/g, '-') === tagLower
     )
-    
+
     if (!matchesTag) continue
-    
+
     // Normalize operation summary using the same function
     const normalizedOperationSummary = normalizeSummaryForSlug(operationSummary)
     const matchesSummary = normalizedOperationSummary === normalizedSummaryFromSlug
