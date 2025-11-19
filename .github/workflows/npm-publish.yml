@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -40,3 +43,23 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push version update to main
+        if: success()
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Switch to main branch to push the update
+          git fetch origin main
+          git checkout main
+          
+          # Update the file on main
+          cd packages/generator
+          VERSION=${GITHUB_REF#refs/tags/v}
+          npm version $VERSION --no-git-tag-version
+          git add package.json
+          
+          # Commit and push if there are changes
+          git commit -m "chore: update version to $VERSION [skip ci]" || echo "No changes to commit"
+          git push origin main
