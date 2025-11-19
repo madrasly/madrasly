@@ -83,6 +83,29 @@ This will:
 **Stop the development environment:**
 Press `Ctrl+C` to stop the watcher and dev server.
 
+### Using the CLI Directly
+
+You can use the CLI directly without npm installing it by running the compiled JavaScript file:
+
+```bash
+# After building (npm run build), use:
+node dist/cli.js <spec-file> [output-directory] [options]
+
+# Examples:
+node dist/cli.js examples/coingecko-spec.json my-playground
+node dist/cli.js examples/coingecko-spec.json my-playground --api-key YOUR_KEY
+node dist/cli.js examples/coingecko-spec.json my-playground --force --theme dark
+```
+
+**Available options:**
+- `--force` - Overwrite existing directory
+- `--api-key <key>` - API key for automatic authentication
+- `--workspace-image <url>` - Workspace image URL or file path
+- `--theme <theme>` - Default theme: light, dark, or coffee (default: light)
+- `--no-interactive` - Skip interactive prompts
+
+**Note:** Make sure to run `npm run build` first to compile the TypeScript source to `dist/cli.js`.
+
 ### Making Changes
 
 #### 1. Changing Generator Code
