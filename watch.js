@@ -9,6 +9,7 @@
  * Options:
  *   --api-key KEY              API key for automatic authentication
  *   --workspace-image URL|FILE Workspace image URL or file path
+ *   --theme THEME              Default theme: light, dark, or coffee
  *   --no-interactive           Skip interactive prompts
  *   --use-python-generator     Use legacy Python generator instead of TypeScript
  */
@@ -41,6 +42,15 @@ let workspaceImage = null;
 for (let i = 0; i < process.argv.length; i++) {
   if (process.argv[i] === '--workspace-image' && i + 1 < process.argv.length) {
     workspaceImage = process.argv[i + 1];
+    break;
+  }
+}
+
+// Parse --theme argument if provided
+let theme = null;
+for (let i = 0; i < process.argv.length; i++) {
+  if (process.argv[i] === '--theme' && i + 1 < process.argv.length) {
+    theme = process.argv[i + 1];
     break;
   }
 }
@@ -99,6 +109,9 @@ function regenerate() {
     }
     if (workspaceImage) {
       args.push('--workspace-image', workspaceImage);
+    }
+    if (theme) {
+      args.push('--theme', theme);
     }
     if (noInteractive) {
       args.push('--no-interactive');
