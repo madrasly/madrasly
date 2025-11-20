@@ -13,7 +13,23 @@ interface ResizablePanelProps {
 }
 
 export function ResizablePanel({ left, right, defaultWidth = 700, minWidth = 400, maxWidth = 1200, onRunClick }: ResizablePanelProps) {
-  const [rightPanelWidth, setRightPanelWidth] = useState(defaultWidth)
+  // Calculate responsive initial width based on screen size
+  const getResponsiveWidth = () => {
+    if (typeof window === 'undefined') return defaultWidth
+    const screenWidth = window.innerWidth
+
+    // At 1920px: use default (700px)
+    // At 1100px: use smaller width (400px)
+    // Linear interpolation between these points
+    if (screenWidth >= 1920) return 700
+    if (screenWidth <= 1100) return 400
+
+    // Linear interpolation: width = 400 + (screenWidth - 1100) * (300 / 820)
+    const ratio = (screenWidth - 1100) / (1920 - 1100)
+    return Math.round(400 + ratio * 300)
+  }
+
+  const [rightPanelWidth, setRightPanelWidth] = useState(getResponsiveWidth())
   const [isDragging, setIsDragging] = useState(false)
   const [showCode, setShowCode] = useState(false) // false = form, true = code
   const dragStartX = useRef(0)

@@ -36,8 +36,8 @@ interface CodeEditorProps {
   endpointKey?: string // Add endpointKey to force remount
 }
 
-export function CodeEditor({ 
-  codeSamples: initialCodeSamples, 
+export function CodeEditor({
+  codeSamples: initialCodeSamples,
   defaultLanguage,
   formValues,
   operation,
@@ -67,7 +67,7 @@ export function CodeEditor({
       setActiveTab('output')
     }
   }, [isLoading, apiResponse, error])
-  
+
   // Track current editor value per language (for controlled component)
   const [editorValues, setEditorValues] = useState<Record<string, string>>({})
   const editorRef = useRef<any>(null)
@@ -76,7 +76,7 @@ export function CodeEditor({
   const lastGeneratedCodeRef = useRef<Record<string, string>>({})
   const onChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasUserEditsRef = useRef<Record<string, boolean>>({})
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -86,7 +86,7 @@ export function CodeEditor({
       editorRef.current = null
     }
   }, [])
-  
+
   // Regenerate code samples when form values change
   const codeSamples = useMemo(() => {
     if (operation && spec) {
@@ -96,9 +96,9 @@ export function CodeEditor({
     // Use initial samples if operation/spec not provided
     return initialCodeSamples
   }, [initialCodeSamples, formValues, operation, spec])
-  
+
   const activeSample = codeSamples.find(s => s.language === activeLanguage) || codeSamples[0]
-  
+
   // Initialize editor value on mount or language change
   useEffect(() => {
     if (activeSample) {
@@ -112,25 +112,25 @@ export function CodeEditor({
       }
     }
   }, [activeSample?.language])
-  
+
   // Update editor when form values change (but not when user is typing)
   useEffect(() => {
     if (activeSample && editorRef.current && !isUserTypingRef.current) {
       const lang = activeSample.language
       const generatedCode = activeSample.code
       const lastGenerated = lastGeneratedCodeRef.current[lang]
-      
+
       // Only update if user hasn't manually edited AND code actually changed
       if (!hasUserEditsRef.current[lang] && generatedCode !== lastGenerated) {
         const editor = editorRef.current
         const model = editor.getModel()
         const language = getMonacoLanguage(lang)
-        
+
         // Ensure language is set before updating content
         if (model && monacoRef.current) {
           monacoRef.current.editor.setModelLanguage(model, language)
         }
-        
+
         // Type out content to trigger language service initialization
         // This ensures IntelliSense works immediately when params change
         if (language !== 'plaintext' && language !== 'shell') {
@@ -144,13 +144,13 @@ export function CodeEditor({
           editor.setValue(generatedCode)
           editor.updateOptions({ readOnly: true, domReadOnly: true })
         }
-        
+
         // Update state to match
         setEditorValues(prev => ({
           ...prev,
           [lang]: generatedCode
         }))
-        
+
         lastGeneratedCodeRef.current[lang] = generatedCode
       }
     } else if (activeSample && !hasUserEditsRef.current[activeSample.language]) {
@@ -158,9 +158,9 @@ export function CodeEditor({
       lastGeneratedCodeRef.current[activeSample.language] = activeSample.code
     }
   }, [activeSample?.code, activeSample?.language])
-  
+
   // Get the value to display
-  const displayValue = activeSample 
+  const displayValue = activeSample
     ? (editorValues[activeSample.language] ?? activeSample.code)
     : ''
 
@@ -185,22 +185,22 @@ export function CodeEditor({
       try {
         // Temporarily make editor editable
         editor.updateOptions({ readOnly: false })
-        
+
         // Clear existing content
         editor.setValue('')
-        
+
         // Type out content incrementally using setValue
         // This is simpler and more reliable than executeEdits
         const chunkSize = 50 // Characters per chunk
         let index = 0
-        
+
         const typeChunk = () => {
           try {
             if (index < content.length) {
               // Set value incrementally - each setValue triggers a change event
               const partialContent = content.slice(0, index + chunkSize)
               editor.setValue(partialContent)
-              
+
               index += chunkSize
               // Very fast typing - 1ms per chunk
               setTimeout(typeChunk, 1)
@@ -210,7 +210,7 @@ export function CodeEditor({
               if (currentValue !== content) {
                 editor.setValue(content)
               }
-              
+
               // Restore read-only mode
               editor.updateOptions({ readOnly: true, domReadOnly: true })
               resolve()
@@ -223,7 +223,7 @@ export function CodeEditor({
             resolve()
           }
         }
-        
+
         // Start typing after a tiny delay to ensure editor is ready
         setTimeout(typeChunk, 0)
       } catch (error) {
@@ -251,13 +251,13 @@ export function CodeEditor({
 
       {/* Tabs */}
       <div className="border-b border-code-editor flex items-center px-6 bg-code-editor-header">
-        <button 
+        <button
           onClick={() => setActiveTab('code')}
           className={`
             px-4 py-3 text-sm font-medium border-b-2 flex items-center gap-2
             transition-all duration-200 ease-in-out
-            ${activeTab === 'code' 
-              ? 'border-primary text-white' 
+            ${activeTab === 'code'
+              ? 'border-primary text-white'
               : 'text-muted hover:text-white hover:border-default active:scale-[0.98]'
             }
           `}
@@ -265,13 +265,13 @@ export function CodeEditor({
           <FileCode size={14} />
           Code
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('output')}
           className={`
             px-4 py-3 text-sm font-medium border-b-2 flex items-center gap-2
             transition-all duration-200 ease-in-out
-            ${activeTab === 'output' 
-              ? 'border-primary text-white' 
+            ${activeTab === 'output'
+              ? 'border-primary text-white'
               : 'text-muted hover:text-white hover:border-default active:scale-[0.98]'
             }
           `}
@@ -308,12 +308,12 @@ export function CodeEditor({
           <div className="flex-1 relative overflow-hidden">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button 
+                <button
                   className={`
                     absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded z-10
                     transition-all duration-200 ease-in-out
-                    ${isCopied 
-                      ? 'text-success bg-code-editor-success' 
+                    ${isCopied
+                      ? 'text-success bg-code-editor-success'
                       : 'text-muted hover:text-white bg-code-editor-hover active:bg-code-editor-active active:scale-95'
                     }
                   `}
@@ -333,8 +333,8 @@ export function CodeEditor({
                     <Check size={16} />
                   ) : (
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 2H12V4H14V14H6V12H4V2Z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                      <path d="M2 4H10V12H2V4Z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                      <path d="M4 2H12V4H14V14H6V12H4V2Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                      <path d="M2 4H10V12H2V4Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
                     </svg>
                   )}
                 </button>
@@ -343,7 +343,7 @@ export function CodeEditor({
                 <p>{isCopied ? 'Copied!' : 'Copy code'}</p>
               </TooltipContent>
             </Tooltip>
-            
+
             {activeSample && (
               <Editor
                 key={`editor-${activeLanguage}`}
@@ -364,7 +364,7 @@ export function CodeEditor({
                   wordWrap: 'on',
                   selectOnLineNumbers: false,
                   glyphMargin: false,
-                  hover: { 
+                  hover: {
                     enabled: true,
                     delay: 300,
                   },
@@ -390,14 +390,14 @@ export function CodeEditor({
                 onMount={(editor, monaco) => {
                   editorRef.current = editor
                   monacoRef.current = monaco
-                  
+
                   // Set the correct language for IntelliSense
                   const model = editor.getModel()
                   if (model && monaco) {
                     const language = getMonacoLanguage(activeSample.language)
                     monaco.editor.setModelLanguage(model, language)
                   }
-                  
+
                   // Type out content programmatically after a short delay (0.1s as requested)
                   // This simulates user typing and naturally triggers language service initialization
                   setTimeout(() => {
@@ -418,22 +418,22 @@ export function CodeEditor({
                       }
                     }
                   }, 100)
-                  
+
                   // Get the editor DOM element and make it non-focusable
                   const editorDom = editor.getContainerDomNode()
                   editorDom.setAttribute('tabindex', '-1')
-                  
+
                   // Block keyboard events to prevent any editing
                   editorDom.addEventListener('keydown', (e) => {
                     e.preventDefault()
                     e.stopPropagation()
                   }, true)
-                  
+
                   // Prevent focus but allow text selection
                   editor.onDidFocusEditorText(() => {
                     // Blur immediately to prevent cursor
                     setTimeout(() => {
-                    editorDom.blur()
+                      editorDom.blur()
                     }, 0)
                   })
                 }}
@@ -467,11 +467,10 @@ export function CodeEditor({
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className={`px-3 py-1 rounded text-sm font-medium ${
-                    apiResponse.status >= 200 && apiResponse.status < 300
-                      ? 'bg-success text-success'
-                      : 'bg-error text-error'
-                  }`}>
+                  <div className={`px-3 py-1 rounded text-sm font-medium ${apiResponse.status >= 200 && apiResponse.status < 300
+                    ? 'bg-success text-success'
+                    : 'bg-error text-error'
+                    }`}>
                     {apiResponse.status} {apiResponse.statusText}
                   </div>
                 </div>
