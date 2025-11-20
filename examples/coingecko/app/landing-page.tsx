@@ -321,7 +321,7 @@ export default function LandingPage() {
   return (
     <div className="flex h-screen bg-background">
       {/* Mobile Header with Hamburger Menu */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-background border-b border-default px-4 py-3 flex items-center justify-between">
+      <div className="md:hidden fixed left-0 right-0 top-0 z-40 bg-background border-b border-default px-4 py-3 flex items-center justify-between">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="p-2 hover:bg-hover rounded-lg transition-colors"
@@ -480,7 +480,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   )
 }
