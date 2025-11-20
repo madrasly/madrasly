@@ -7,8 +7,8 @@
   },
   "servers": [
     {
-      "url": "http://localhost:3000",
-      "description": "Local development server"
+      "url": "https://madrasly-gc-backend-716221417058.us-east4.run.app",
+      "description": "Production server on Google Cloud Run"
     }
   ],
   "tags": [
@@ -793,7 +793,8 @@
     "sidebar": {
       "workspace": {
         "name": "Madrasly",
-        "icon": "API"
+        "icon": "API",
+        "image": "https://avatars.githubusercontent.com/u/244608793?s=200&v=4"
       },
       "user": {
         "name": "User",

@@ -4,8 +4,8 @@ info:
   description: The official Madrasly API to generate interactive playgrounds on demand.
   version: 0.1.0
 servers:
-  - url: http://localhost:3000
-    description: Local development server
+  - url: https://madrasly-gc-backend-716221417058.us-east4.run.app
+    description: Production server on Google Cloud Run
 tags:
   - name: DEMO
     description: Demo endpoints that don't require authentication or account creation. Perfect for testing and quick playground generation.
