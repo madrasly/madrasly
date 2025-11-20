@@ -47,8 +47,8 @@ export function ApiPageHeader({ title, description, actions }: ApiPageHeaderProp
 
   return (
     <div className="mb-8 min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-3 sm:gap-4">
-        <h1 className="text-[32px] font-semibold text-primary break-words max-w-4xl">{title}</h1>
+      <div className="flex flex-wrap items-center justify-between mb-2 gap-3 sm:gap-4">
+        <h1 className="text-[32px] font-semibold text-primary max-w-4xl min-w-0">{title}</h1>
         <div className="flex items-center gap-2 flex-shrink-0">
           {actions?.map((action, index) => {
             const isCopied = copiedIndex === index

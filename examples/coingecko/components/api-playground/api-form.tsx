@@ -403,10 +403,10 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
   return (
     <div className="min-w-0">
       {/* Top row: Try an example on left, Run/Clear buttons on right */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         {/* Try an example - show if examples exist */}
         {examples && examples.length > 0 && (
-          <div className="flex items-center">
+          <div className="flex items-center min-w-0 max-w-full">
             <Select value={selectedExample} onValueChange={handleExampleSelect}>
               <SelectTrigger className="w-auto h-auto px-0 py-0 border-0 bg-transparent text-sm text-link shadow-none">
                 <SelectValue placeholder="Try an example" />
@@ -421,10 +421,9 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
             </Select>
           </div>
         )}
-        {(!examples || examples.length === 0) && <div />}
 
-        {/* Run/Clear Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Run/Clear Buttons - wraps to new line when needed */}
+        <div className="flex items-center gap-2 flex-shrink-0 basis-full sm:basis-auto sm:ml-auto">
           <button
             onClick={handleClear}
             className="btn-secondary"

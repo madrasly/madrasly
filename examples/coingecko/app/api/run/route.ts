@@ -31,18 +31,34 @@ const MAX_RESPONSE_SIZE = 10 * 1024 * 1024
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const
 
 // SSRF protection: Blocked hostnames and IPs
-const BLOCKED_HOSTNAMES = new Set([
-  'localhost',
-  '127.0.0.1',
-  '0.0.0.0',
-  '::1',
-  'metadata.google.internal',
-  '169.254.169.254', // AWS, GCP, Azure metadata endpoint
-  'fd00::', // IPv6 ULA prefix
-])
+// In development mode, we allow localhost for testing
+// In production, we block all private IPs and localhost for security
+const isDevelopment = process.env.NODE_ENV === 'development'
+
+const BLOCKED_HOSTNAMES = new Set(
+  isDevelopment
+    ? [
+      // In development, only block cloud metadata endpoints
+      'metadata.google.internal',
+      '169.254.169.254', // AWS, GCP, Azure metadata endpoint
+    ]
+    : [
+      // In production, block everything private
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0',
+      '::1',
+      'metadata.google.internal',
+      '169.254.169.254', // AWS, GCP, Azure metadata endpoint
+      'fd00::', // IPv6 ULA prefix
+    ]
+)
 
 // SSRF protection: Check if hostname is a private IPv4 address
 function isPrivateIPv4(hostname: string): boolean {
+  // In development mode, allow private IPs for local testing
+  if (isDevelopment) return false
+
   // Check for private IP ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
   if (/^10\./.test(hostname)) return true
   if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)) return true
@@ -54,6 +70,9 @@ function isPrivateIPv4(hostname: string): boolean {
 
 // SSRF protection: Check if hostname is a private IPv6 address
 function isPrivateIPv6(hostname: string): boolean {
+  // In development mode, allow private IPs for local testing
+  if (isDevelopment) return false
+
   // IPv6 localhost
   if (hostname === '::1' || hostname === '::') return true
   // IPv6 link-local: fe80::/10
@@ -68,29 +87,29 @@ function isPrivateIPv6(hostname: string): boolean {
 // SSRF protection: Check if hostname is blocked
 function isBlockedHostname(hostname: string): boolean {
   const lowerHostname = hostname.toLowerCase()
-  
+
   // Check exact matches
   if (BLOCKED_HOSTNAMES.has(lowerHostname)) return true
-  
+
   // Check if it's a blocked hostname with port
   for (const blocked of BLOCKED_HOSTNAMES) {
     if (lowerHostname.startsWith(blocked + ':') || lowerHostname.startsWith('[' + blocked + ']')) {
       return true
     }
   }
-  
-  // Check for cloud metadata endpoints
-  if (lowerHostname.includes('metadata') && 
-      (lowerHostname.includes('google') || lowerHostname.includes('aws') || lowerHostname.includes('azure'))) {
+
+  // Check for cloud metadata endpoints (always blocked, even in development)
+  if (lowerHostname.includes('metadata') &&
+    (lowerHostname.includes('google') || lowerHostname.includes('aws') || lowerHostname.includes('azure'))) {
     return true
   }
-  
+
   // Check IPv4 private ranges
   if (isPrivateIPv4(lowerHostname)) return true
-  
+
   // Check IPv6 private ranges
   if (isPrivateIPv6(lowerHostname)) return true
-  
+
   return false
 }
 
@@ -98,23 +117,24 @@ function isBlockedHostname(hostname: string): boolean {
 function isSafeUrl(url: string): { safe: boolean; reason?: string } {
   try {
     const parsed = new URL(url)
-    
+
     // Only allow http and https protocols
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       return { safe: false, reason: 'Invalid protocol' }
     }
-    
+
     const hostname = parsed.hostname
-    
+    // In development, allow localhost and private IPs for testing
+    const isDev = process.env.NODE_ENV === 'development'
+    if (isDev && (hostname === 'localhost' || hostname === '127.0.0.1')) {
+      return { safe: true }
+    }
+
     // Check blocked hostnames
     if (isBlockedHostname(hostname)) {
       return { safe: false, reason: 'Blocked hostname or private IP' }
     }
-    
-    // Additional check: Try to resolve hostname to IP (for DNS rebinding protection)
-    // Note: In Node.js, we can't easily do DNS resolution in validation,
-    // but we'll do a final check when making the request
-    
+
     return { safe: true }
   } catch {
     return { safe: false, reason: 'Invalid URL format' }
@@ -172,7 +192,7 @@ const requestSchema = z.object({
     },
     { message: 'Invalid or unsafe content type' }
   ),
-  securityScheme: z.record(z.any()).optional().refine(
+  securityScheme: z.record(z.any()).nullable().optional().refine(
     (val) => {
       if (!val) return true
       // Prevent prototype pollution - ensure it's a plain object
@@ -187,7 +207,7 @@ const requestSchema = z.object({
     },
     { message: 'Invalid securityScheme structure' }
   ),
-  operation: z.record(z.any()).optional().refine(
+  operation: z.record(z.any()).nullable().optional().refine(
     (val) => {
       if (!val) return true
       // Prevent prototype pollution
@@ -255,23 +275,24 @@ function createErrorResponse(
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID()
   const startTime = Date.now()
-  
-  // Get client information for logging and rate limiting
-  const clientIp = getClientIdentifier(request)
-  const userAgent = request.headers.get('user-agent') || 'unknown'
-  
+
+  try {
+    // Get client information for logging and rate limiting
+    const clientIp = getClientIdentifier(request)
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+
   // Get endpointKey from header (set by client) for better idempotency key generation
   const endpointKeyFromHeader = request.headers.get('x-endpoint-key')
-  
+
   // Generate idempotency key - will be updated after parsing body to include endpointKey
   let idempotencyKey = request.headers.get('idempotency-key') || generateIdempotencyKey('POST', '/api/run', '', {}, endpointKeyFromHeader || undefined)
-  
+
   // Check rate limiting
   const rateLimit = checkRateLimit(clientIp, {
     maxRequests: 100, // 100 requests per minute
     windowMs: 60000,
   })
-  
+
   if (!rateLimit.allowed) {
     logger.warn('Rate limit exceeded', {
       requestId,
@@ -286,7 +307,7 @@ export async function POST(request: NextRequest) {
       'ERR_RATE_LIMIT_EXCEEDED'
     )
   }
-  
+
   // Check for duplicate requests (idempotency)
   const duplicateCheck = checkDuplicate(idempotencyKey)
   if (duplicateCheck.isDuplicate && duplicateCheck.cachedResponse) {
@@ -297,7 +318,7 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json(duplicateCheck.cachedResponse)
   }
-  
+
   logger.info('API request received', {
     requestId,
     method: 'POST',
@@ -334,7 +355,7 @@ export async function POST(request: NextRequest) {
     // and check size as we read it
     const bodyText = await request.text()
     const bodySize = Buffer.byteLength(bodyText, 'utf8')
-    
+
     if (bodySize > MAX_BODY_SIZE) {
       logger.warn('Request body too large', {
         requestId,
@@ -349,7 +370,7 @@ export async function POST(request: NextRequest) {
         'ERR_PAYLOAD_TOO_LARGE'
       )
     }
-    
+
     // Parse JSON only after size validation
     body = JSON.parse(bodyText)
   } catch (error) {
@@ -390,6 +411,13 @@ export async function POST(request: NextRequest) {
   }
 
   const { method, path, baseUrl, data, contentType, securityScheme, operation, endpointKey } = validationResult.data
+
+  // Debug: log incoming request fields (after validation)
+  console.log('[Debug] /api/run request body:', {
+    baseUrl,
+    securityScheme,
+    operation,
+  })
 
   // Regenerate idempotency key with endpointKey from body (more reliable than header)
   // This ensures different endpoints don't collide in the deduplication cache
@@ -444,14 +472,14 @@ export async function POST(request: NextRequest) {
     const baseUrlObj = new URL(apiBaseUrl)
     // Ensure path starts with / for proper URL construction
     const cleanPath = path.startsWith('/') ? path : `/${path}`
-    
+
     // If baseUrl already has a path, append to it instead of replacing
     // This handles cases like baseUrl: "https://api.example.com/v1" + path: "/messages"
     // Should result in: "https://api.example.com/v1/messages" not "https://api.example.com/messages"
     if (baseUrlObj.pathname && baseUrlObj.pathname !== '/') {
       // Base URL has a path, append the endpoint path
-      const basePath = baseUrlObj.pathname.endsWith('/') 
-        ? baseUrlObj.pathname.slice(0, -1) 
+      const basePath = baseUrlObj.pathname.endsWith('/')
+        ? baseUrlObj.pathname.slice(0, -1)
         : baseUrlObj.pathname
       const endpointPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`
       baseUrlObj.pathname = `${basePath}${endpointPath}`
@@ -460,11 +488,11 @@ export async function POST(request: NextRequest) {
       // Base URL has no path, use standard URL constructor
       url = new URL(cleanPath, baseUrlObj).toString()
     }
-    
+
     // Final SSRF check on constructed URL with enhanced protection
     const finalUrl = new URL(url)
     const urlValidation = isSafeUrl(url)
-    
+
     if (!urlValidation.safe) {
       logger.warn('SSRF attempt blocked', {
         requestId,
@@ -480,7 +508,7 @@ export async function POST(request: NextRequest) {
         'ERR_INVALID_URL'
       )
     }
-    
+
     // Additional DNS rebinding protection: verify hostname matches what we validated
     // (This is a defense-in-depth measure - the hostname should already be validated)
     const hostname = finalUrl.hostname
@@ -518,7 +546,7 @@ export async function POST(request: NextRequest) {
   const headerParamNames = new Set<string>()
   const queryParamNames = new Set<string>()
   const pathParamNames = new Set<string>()
-  
+
   if (operation?.parameters && Array.isArray(operation.parameters)) {
     for (const param of operation.parameters) {
       if (param.in === 'header') {
@@ -530,19 +558,19 @@ export async function POST(request: NextRequest) {
       }
     }
   }
-  
+
   const requestBody: Record<string, any> = {}
   const methodUpper = method.toUpperCase()
   const methodsWithBody = ['POST', 'PUT', 'PATCH', 'DELETE']
   const hasBody = methodsWithBody.includes(methodUpper)
-  
+
   if (hasBody) {
     Object.entries(data || {}).forEach(([key, value]) => {
       // Skip header, query, and path parameters - they don't belong in request body
       if (headerParamNames.has(key) || queryParamNames.has(key) || pathParamNames.has(key)) {
         return
       }
-      
+
       if (value !== undefined && value !== null && value !== '') {
         // Preserve the value type as-is
         requestBody[key] = value
@@ -558,7 +586,7 @@ export async function POST(request: NextRequest) {
   const authType = securitySchemeInfo.type || 'apiKey'
   const authScheme = securitySchemeInfo.scheme || null
   const authIn = securitySchemeInfo.in || 'header'
-  
+
   // Try to get API key from the correct header based on security scheme
   let manualApiKey: string | null = null
   if (authType === 'apiKey' && authIn === 'header') {
@@ -575,21 +603,21 @@ export async function POST(request: NextRequest) {
     }
   } else {
     // Fallback: try common header names
-    manualApiKey = request.headers.get(authHeaderName) || 
-                   request.headers.get('authorization')?.replace('Bearer ', '') ||
-                   null
+    manualApiKey = request.headers.get(authHeaderName) ||
+      request.headers.get('authorization')?.replace('Bearer ', '') ||
+      null
   }
-  
+
   const automaticApiKey = process.env.API_KEY || null
-  
+
   // Use manual key if provided, otherwise fall back to automatic
   const apiKey = manualApiKey || automaticApiKey
 
   // Determine content type from spec or default to application/json (only if there's a body)
   const requestContentType = contentType || 'application/json'
-  
+
   const headers: Record<string, string> = {}
-  
+
   // Only set Content-Type if there's a body
   if (hasBody && Object.keys(requestBody).length > 0) {
     headers['Content-Type'] = requestContentType
@@ -602,7 +630,7 @@ export async function POST(request: NextRequest) {
         // Get value from data, or use default/example from spec
         const paramValue = data?.[param.name]
         const defaultValue = param.schema?.default ?? param.example ?? param.schema?.example
-        
+
         if (paramValue !== undefined && paramValue !== null && paramValue !== '') {
           headers[param.name] = String(paramValue)
         } else if (defaultValue !== undefined && defaultValue !== null) {
@@ -634,7 +662,7 @@ export async function POST(request: NextRequest) {
       // For Basic auth, properly base64 encode username:password
       // The apiKey should be in format "username:password" or already base64 encoded
       let basicAuthValue: string
-      
+
       // Check if apiKey contains ':' (username:password format)
       if (apiKey.includes(':')) {
         // It's in username:password format, encode it
@@ -644,7 +672,7 @@ export async function POST(request: NextRequest) {
         // (If it's not valid base64, the API will reject it, which is fine)
         basicAuthValue = apiKey
       }
-      
+
       headers['Authorization'] = `Basic ${basicAuthValue}`
     } else {
       // Fallback: check if it's already formatted
@@ -659,19 +687,19 @@ export async function POST(request: NextRequest) {
 
   // Build final URL (may include query parameters for API key auth or other query params)
   let fullUrl = url
-  
+
   // Handle query parameters from data (for GET requests and query param auth)
   const queryParams: string[] = []
-  
+
   // Add query parameter authentication if needed
   if (apiKey && authType === 'apiKey' && authIn === 'query') {
     queryParams.push(`${encodeURIComponent(authHeaderName)}=${encodeURIComponent(apiKey)}`)
   }
-  
+
   // Add other query parameters from data (for GET requests)
   // Also ensure required query parameters are included even if not in data
   const dataParams: Record<string, any> = { ...(data || {}) }
-  
+
   if (!hasBody && operation?.parameters) {
     // Check for required query parameters that might be missing
     for (const param of operation.parameters) {
@@ -684,7 +712,7 @@ export async function POST(request: NextRequest) {
       }
     }
   }
-  
+
   if (!hasBody && Object.keys(dataParams).length > 0) {
     Object.entries(dataParams).forEach(([key, value]) => {
       // Include all values, even empty strings for query params (let the API decide)
@@ -704,7 +732,7 @@ export async function POST(request: NextRequest) {
       }
     })
   }
-  
+
   if (queryParams.length > 0) {
     const separator = fullUrl.includes('?') ? '&' : '?'
     fullUrl = `${fullUrl}${separator}${queryParams.join('&')}`
@@ -729,17 +757,17 @@ export async function POST(request: NextRequest) {
       headers,
       signal: controller.signal,
     }
-    
+
     // Only add body if there's actual body data
     if (hasBody && Object.keys(requestBody).length > 0) {
       fetchOptions.body = JSON.stringify(requestBody)
     }
-    
+
     const response = await fetch(fullUrl, fetchOptions)
     clearTimeout(timeoutId)
 
     const duration = Date.now() - startTime
-    
+
     // Check Content-Length header if available
     const contentLength = response.headers.get('content-length')
     if (contentLength) {
@@ -796,7 +824,7 @@ export async function POST(request: NextRequest) {
     try {
       while (true) {
         const { done, value } = await reader.read()
-        
+
         if (done) break
 
         // Track byte size before decoding
@@ -825,7 +853,7 @@ export async function POST(request: NextRequest) {
         // Decode the full chunk
         rawText += decoder.decode(value, { stream: true })
       }
-      
+
       // Decode any remaining stream data
       rawText += decoder.decode()
     } catch (readError) {
@@ -849,7 +877,7 @@ export async function POST(request: NextRequest) {
     // Try to parse as JSON, but keep raw text available
     let parsedData: any
     let prettyRaw: string = rawText
-    
+
     if (truncated) {
       // If truncated, don't try to parse as JSON
       parsedData = rawText + '\n\n[Response truncated - exceeds maximum size]'
@@ -874,15 +902,15 @@ export async function POST(request: NextRequest) {
       data: parsedData,
       raw: prettyRaw, // Pretty-printed response for display
     }
-    
+
     // Store response for deduplication (only for successful responses)
     if (response.status >= 200 && response.status < 300) {
       storeResponse(idempotencyKey, successResponse)
     }
-    
+
     // Create response with compression support
     const nextResponse = NextResponse.json(successResponse)
-    
+
     // Enable compression for large responses (Next.js handles this automatically,
     // but we can set headers to hint compression)
     const responseSize = Buffer.byteLength(JSON.stringify(successResponse), 'utf8')
@@ -891,11 +919,11 @@ export async function POST(request: NextRequest) {
       // We just ensure the response is eligible
       nextResponse.headers.set('Vary', 'Accept-Encoding')
     }
-    
+
     return nextResponse
   } catch (error: unknown) {
     const duration = Date.now() - startTime
-    
+
     // Handle timeout specifically
     if (error instanceof Error && error.name === 'AbortError') {
       logger.warn('Request timeout', {
@@ -914,7 +942,7 @@ export async function POST(request: NextRequest) {
         'ERR_REQUEST_TIMEOUT'
       )
     }
-    
+
     // Log error with full context (but don't expose to client)
     logger.error('Failed to make API request', error, {
       requestId,
@@ -924,7 +952,7 @@ export async function POST(request: NextRequest) {
       clientIp,
       userAgent,
     })
-    
+
     // Return sanitized error message (never expose internal error details)
     return createErrorResponse(
       'Failed to make API request',
@@ -932,6 +960,22 @@ export async function POST(request: NextRequest) {
       requestId,
       500,
       'ERR_API_REQUEST_FAILED'
+    )
+  }
+  }
+  catch (topLevelError: unknown) {
+    // Catch any unexpected errors that occur before the fetch try-catch
+    const duration = Date.now() - startTime
+    logger.error('Unexpected error in POST handler', topLevelError, {
+      requestId,
+      duration,
+    })
+    return createErrorResponse(
+      'Internal server error',
+      'An unexpected error occurred while processing your request',
+      requestId,
+      500,
+      'ERR_INTERNAL_SERVER_ERROR'
     )
   }
 }
