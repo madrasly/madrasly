@@ -14,7 +14,7 @@ tags:
 paths:
   /health:
     get:
-      summary: Health Cheq
+      summary: Health Check
       description: Returns the health status of the API.
       security: []
       responses:
