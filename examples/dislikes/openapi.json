@@ -1,0 +1,1036 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Return YouTube Dislike",
+    "version": "1.0.1"
+  },
+  "servers": [
+    {
+      "url": "https://returnyoutubedislikeapi.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication and authorization endpoints including OAuth login, token exchange, and session verification"
+    },
+    {
+      "name": "Configs",
+      "description": "Configuration endpoints for retrieving selectors and other configuration data"
+    },
+    {
+      "name": "Diagnostics",
+      "description": "Diagnostic and monitoring endpoints for collecting data and system diagnostics"
+    },
+    {
+      "name": "Interact",
+      "description": "User interaction endpoints for voting and confirming votes"
+    },
+    {
+      "name": "PatreonAnalytics",
+      "description": "Patreon-specific analytics endpoints for video analytics and statistics"
+    },
+    {
+      "name": "Puzzle",
+      "description": "Puzzle registration and management endpoints"
+    },
+    {
+      "name": "Votes",
+      "description": "Vote-related endpoints for retrieving, submitting, and managing votes"
+    }
+  ],
+  "paths": {
+    "/api/Auth/oauth/login": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "redirectUri",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Auth/oauth/exchange": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "state": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "expectedState": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "redirectUri": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "state": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "expectedState": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "redirectUri": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "state": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "expectedState": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "redirectUri": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Auth/patreon/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Auth/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionToken": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionToken": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionToken": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/Configs/selectors": {
+      "get": {
+        "tags": [
+          "Configs"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/collect": {
+      "get": {
+        "tags": [
+          "Diagnostics"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/diagnostics": {
+      "get": {
+        "tags": [
+          "Diagnostics"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/Interact/vote": {
+      "post": {
+        "tags": [
+          "Interact"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "videoId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "value": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "videoId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "value": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "videoId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "value": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/Interact/confirmVote": {
+      "post": {
+        "tags": [
+          "Interact"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "videoId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "value": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "videoId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "value": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "videoId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "value": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/patreon/analytics/video/{videoId}": {
+      "get": {
+        "tags": [
+          "PatreonAnalytics"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "VideoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "RangeDays",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "RangeAnchor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Bucket",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CountryLimit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "SelectedRangeStartUtc",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "SelectedRangeEndUtc",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/Puzzle/registration": {
+      "get": {
+        "tags": [
+          "Puzzle"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Puzzle"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "challenge": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  },
+                  "difficulty": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "challenge": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  },
+                  "difficulty": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "challenge": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  },
+                  "solution": {
+                    "type": "string",
+                    "format": "byte",
+                    "nullable": true
+                  },
+                  "difficulty": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/test": {
+      "get": {
+        "tags": [
+          "Votes"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/test2": {
+      "get": {
+        "tags": [
+          "Votes"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/origins": {
+      "get": {
+        "tags": [
+          "Votes"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/resetCache": {
+      "get": {
+        "tags": [
+          "Votes"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/Votes": {
+      "get": {
+        "tags": [
+          "Votes"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "likeCount",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Votes"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "OAuthExchangeRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "nullable": true
+          },
+          "expectedState": {
+            "type": "string",
+            "nullable": true
+          },
+          "redirectUri": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Puzzle": {
+        "type": "object",
+        "properties": {
+          "challenge": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "solution": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "difficulty": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VerifySessionRequest": {
+        "type": "object",
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VoteModel": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "videoId": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "solution": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "x-ui-config": {
+    "sidebar": {
+      "workspace": {
+        "name": "Return YouTube Dislike",
+        "icon": "API",
+        "image": "https://avatars.githubusercontent.com/u/244608793?s=200&v=4"
+      },
+      "user": {
+        "name": "User",
+        "initials": "U"
+      }
+    },
+    "endpoints": {
+      "get--api-auth-oauth-login": {
+        "title": "get__api_Auth_oauth_login",
+        "description": "",
+        "method": "GET",
+        "path": "/api/Auth/oauth/login"
+      },
+      "post--api-auth-oauth-exchange": {
+        "title": "post__api_Auth_oauth_exchange",
+        "description": "",
+        "method": "POST",
+        "path": "/api/Auth/oauth/exchange"
+      },
+      "post--api-auth-patreon-refresh": {
+        "title": "post__api_Auth_patreon_refresh",
+        "description": "",
+        "method": "POST",
+        "path": "/api/Auth/patreon/refresh"
+      },
+      "post--api-auth-verify": {
+        "title": "post__api_Auth_verify",
+        "description": "",
+        "method": "POST",
+        "path": "/api/Auth/verify"
+      },
+      "get--configs-selectors": {
+        "title": "get__Configs_selectors",
+        "description": "",
+        "method": "GET",
+        "path": "/Configs/selectors"
+      },
+      "get--api-collect": {
+        "title": "get__api_collect",
+        "description": "",
+        "method": "GET",
+        "path": "/api/collect"
+      },
+      "get--api-diagnostics": {
+        "title": "get__api_diagnostics",
+        "description": "",
+        "method": "GET",
+        "path": "/api/diagnostics"
+      },
+      "post--interact-vote": {
+        "title": "post__Interact_vote",
+        "description": "",
+        "method": "POST",
+        "path": "/Interact/vote"
+      },
+      "post--interact-confirmvote": {
+        "title": "post__Interact_confirmVote",
+        "description": "",
+        "method": "POST",
+        "path": "/Interact/confirmVote"
+      },
+      "get--api-patreon-analytics-video-videoid": {
+        "title": "get__api_patreon_analytics_video_videoId",
+        "description": "",
+        "method": "GET",
+        "path": "/api/patreon/analytics/video/{videoId}",
+        "urlField": {
+          "name": "videoId"
+        }
+      },
+      "get--puzzle-registration": {
+        "title": "get__Puzzle_registration",
+        "description": "",
+        "method": "GET",
+        "path": "/Puzzle/registration"
+      },
+      "post--puzzle-registration": {
+        "title": "post__Puzzle_registration",
+        "description": "",
+        "method": "POST",
+        "path": "/Puzzle/registration"
+      },
+      "get--test": {
+        "title": "get__test",
+        "description": "",
+        "method": "GET",
+        "path": "/test"
+      },
+      "get--test2": {
+        "title": "get__test2",
+        "description": "",
+        "method": "GET",
+        "path": "/test2"
+      },
+      "get--origins": {
+        "title": "get__origins",
+        "description": "",
+        "method": "GET",
+        "path": "/origins"
+      },
+      "get--resetcache": {
+        "title": "get__resetCache",
+        "description": "",
+        "method": "GET",
+        "path": "/resetCache"
+      },
+      "get--votes": {
+        "title": "get__Votes",
+        "description": "",
+        "method": "GET",
+        "path": "/Votes"
+      },
+      "post--votes": {
+        "title": "post__Votes",
+        "description": "",
+        "method": "POST",
+        "path": "/Votes"
+      }
+    },
+    "auth": {
+      "mode": "manual"
+    }
+  }
+}

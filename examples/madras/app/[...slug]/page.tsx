@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
-import { useParams, useRouter, usePathname } from 'next/navigation'
+import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Sidebar } from '@/components/api-playground/sidebar'
 import { ApiPageHeader } from '@/components/api-playground/api-page-header'
@@ -24,6 +24,8 @@ export default function SlugPage() {
   const params = useParams()
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const methodParam = searchParams.get('method')
   const slug = params?.slug as string[] | undefined
   const { spec: openApiSpec, loading: specLoading } = useOpenAPISpec()
 
@@ -38,6 +40,8 @@ export default function SlugPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [endpointKey, setEndpointKey] = useState<string | undefined>(undefined)
+  const [availableMethods, setAvailableMethods] = useState<string[]>([])
+  const [methodToKeyMap, setMethodToKeyMap] = useState<Record<string, string>>({})
   const [formValues, setFormValues] = useState<Record<string, any>>({})
   const previousEndpointKeyRef = useRef<string | undefined>(undefined)
   const currentEndpointKeyRef = useRef<string | undefined>(undefined) // Track current endpoint for race condition checks
@@ -71,10 +75,58 @@ export default function SlugPage() {
       return
     }
 
+    // Calculate available methods for this path
+    const endpoints = openApiSpec['x-ui-config']?.endpoints || {}
+    const foundEndpointConfig = endpoints[foundEndpointKey]
+    const currentPath = foundEndpointConfig?.path
+
+    const methods: string[] = []
+    const methodMap: Record<string, string> = {}
+
+    if (currentPath) {
+      // Normalize path for comparison
+      let normPath = currentPath
+      if (!normPath.startsWith('/')) normPath = '/' + normPath
+      if (normPath.endsWith('/') && normPath.length > 1) normPath = normPath.slice(0, -1)
+
+      Object.entries(endpoints).forEach(([key, config]: [string, any]) => {
+        let p = config.path
+        if (!p.startsWith('/')) p = '/' + p
+        if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1)
+
+        if (p === normPath) {
+          const m = config.method.toUpperCase()
+          methods.push(m)
+          methodMap[m] = key
+        }
+      })
+    }
+
+    // Sort methods: GET, POST, PUT, PATCH, DELETE, others
+    const methodPriority = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+    methods.sort((a, b) => {
+      const idxA = methodPriority.indexOf(a)
+      const idxB = methodPriority.indexOf(b)
+      const pA = idxA === -1 ? 999 : idxA
+      const pB = idxB === -1 ? 999 : idxB
+      return pA - pB
+    })
+
+    setAvailableMethods(methods)
+    setMethodToKeyMap(methodMap)
+
+    // Determine final endpoint key based on method param
+    let finalEndpointKey = foundEndpointKey
+    const requestedMethod = methodParam?.toUpperCase()
+
+    if (requestedMethod && methodMap[requestedMethod]) {
+      finalEndpointKey = methodMap[requestedMethod]
+    }
+
     // Only update if endpoint actually changed (not just a re-render)
-    if (foundEndpointKey !== previousEndpointKey) {
-      console.log('[DEBUG] Endpoint changed from', previousEndpointKey, 'to', foundEndpointKey, '- resetting state')
-      previousEndpointKeyRef.current = foundEndpointKey
+    if (finalEndpointKey !== previousEndpointKey) {
+      console.log('[DEBUG] Endpoint changed from', previousEndpointKey, 'to', finalEndpointKey, '- resetting state')
+      previousEndpointKeyRef.current = finalEndpointKey
 
       // IMMEDIATELY clear all state before setting new endpoint
       // Use functional updates to ensure we're clearing the latest state
@@ -91,12 +143,12 @@ export default function SlugPage() {
       }
 
       // Set new endpoint key and config
-      setEndpointKey(() => foundEndpointKey)
-      currentEndpointKeyRef.current = foundEndpointKey // Update ref immediately
-      const config = parseOpenAPIToConfig(openApiSpec as any, foundEndpointKey)
+      setEndpointKey(() => finalEndpointKey)
+      currentEndpointKeyRef.current = finalEndpointKey // Update ref immediately
+      const config = parseOpenAPIToConfig(openApiSpec as any, finalEndpointKey)
       setEndpointConfig(() => config)
 
-      console.log('[DEBUG] State cleared and new endpoint set:', foundEndpointKey)
+      console.log('[DEBUG] State cleared and new endpoint set:', finalEndpointKey)
     } else {
       console.log('[DEBUG] Endpoint unchanged, skipping state reset')
     }
@@ -121,13 +173,30 @@ export default function SlugPage() {
     if (sidebar.navItems) {
       sidebar.navItems.forEach(section => {
         section.items.forEach(item => {
-          item.active = item.endpointKey === foundEndpointKey
+          // Active if it matches the current endpoint OR if it matches any endpoint in the current group (same path)
+          // But since we grouped by path in the sidebar, the item.endpointKey is just one of them (the default).
+          // We should check if the item's endpointKey is in our available methods map?
+          // Actually, sidebar items are now unique per path.
+          // The sidebar parser picks the "best" endpoint key for the item.
+          // We should check if that "best" key corresponds to our current path.
+
+          // Simple check: does the item's endpointKey match any of our available methods?
+          // Or better: does the item's label match our current path?
+          // But label might be title.
+
+          // Let's check if the item's endpointKey is in our methodMap values
+          const itemKey = item.endpointKey
+          if (itemKey && Object.values(methodMap).includes(itemKey)) {
+            item.active = true
+          } else {
+            item.active = false
+          }
         })
       })
     }
 
     setSidebarConfig(sidebar)
-  }, [slug, router, openApiSpec, specLoading])
+  }, [slug, router, openApiSpec, specLoading, methodParam])
 
   // Extract operation and spec for CodeEditor (must be before any conditional returns)
   const operation = useMemo(() => {
@@ -818,64 +887,7 @@ export default function SlugPage() {
                 <ApiPageHeader
                   title={endpointConfig.title}
                   description={endpointConfig.description}
-                  actions={docsUrl ? [
-                    {
-                      label: 'Docs',
-                      icon: <FileText size={16} />,
-                      onClick: handleDocs,
-                    },
-                    {
-                      label: 'Copy for AI',
-                      icon: (
-                        <div className="flex items-center -space-x-1 mr-2 h-6 shrink-0">
-                          <img
-                            src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg"
-                            alt="ChatGPT"
-                            className="w-6 h-6 object-contain relative z-10 shrink-0 flex-shrink-0"
-                            onLoad={() => console.log('[DEBUG] ChatGPT logo loaded')}
-                            onError={(e) => {
-                              console.error('[DEBUG] ChatGPT logo failed to load', e)
-                              const target = e.target as HTMLImageElement
-                              target.style.display = 'none'
-                            }}
-                          />
-                          <img
-                            src="https://www.anthropic.com/images/anthropic-logo.svg"
-                            alt="Anthropic"
-                            className="w-6 h-6 object-contain relative z-0 shrink-0 flex-shrink-0"
-                            onLoad={() => console.log('[DEBUG] Anthropic logo loaded')}
-                            onError={(e) => {
-                              console.error('[DEBUG] Anthropic logo failed, trying favicon', e)
-                              const target = e.target as HTMLImageElement
-                              target.src = 'https://www.anthropic.com/favicon.ico'
-                              target.onload = () => console.log('[DEBUG] Anthropic favicon loaded')
-                              target.onerror = () => {
-                                console.error('[DEBUG] Anthropic favicon also failed')
-                                target.style.display = 'none'
-                              }
-                            }}
-                          />
-                          <img
-                            src="https://www.gstatic.com/lamda/images/gemini_sparkle_v2_delta_v2.svg"
-                            alt="Gemini"
-                            className="w-6 h-6 object-contain relative shrink-0 flex-shrink-0"
-                            onLoad={() => console.log('[DEBUG] Gemini logo loaded')}
-                            onError={(e) => {
-                              console.error('[DEBUG] Gemini logo failed, trying favicon', e)
-                              const target = e.target as HTMLImageElement
-                              target.src = 'https://www.google.com/favicon.ico'
-                              target.onload = () => console.log('[DEBUG] Gemini favicon loaded')
-                              target.onerror = () => {
-                                console.error('[DEBUG] Gemini favicon also failed')
-                                target.style.display = 'none'
-                              }
-                            }}
-                          />
-                        </div>
-                      ),
-                      onClick: handleCopyForAI,
-                    },
-                  ] : [
+                  actions={[
                     {
                       label: 'Copy for AI',
                       icon: (

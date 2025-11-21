@@ -18,9 +18,14 @@ interface ApiPageHeaderProps {
     icon?: React.ReactNode
     onClick?: () => void
   }[]
+  methodSelector?: {
+    methods: string[]
+    currentMethod: string
+    onMethodChange: (method: string) => void
+  }
 }
 
-export function ApiPageHeader({ title, description, actions }: ApiPageHeaderProps) {
+export function ApiPageHeader({ title, description, actions, methodSelector }: ApiPageHeaderProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
   const handleActionClick = (action: { label: string; onClick?: () => void }, index: number) => {
@@ -48,7 +53,28 @@ export function ApiPageHeader({ title, description, actions }: ApiPageHeaderProp
   return (
     <div className="mb-8 min-w-0">
       <div className="flex flex-wrap items-center justify-between mb-2 gap-3 sm:gap-4">
-        <h1 className="text-[32px] font-semibold text-primary max-w-4xl min-w-0">{title}</h1>
+        <div className="flex items-center gap-4 max-w-4xl min-w-0">
+          <h1 className="text-[32px] font-semibold text-primary truncate">{title}</h1>
+          {methodSelector && methodSelector.methods.length > 1 && (
+            <div className="flex items-center bg-muted rounded-lg p-1 border border-default">
+              {methodSelector.methods.map((method) => (
+                <button
+                  key={method}
+                  onClick={() => methodSelector.onMethodChange(method)}
+                  className={`
+                    px-3 py-1 text-xs font-medium rounded-md transition-all
+                    ${methodSelector.currentMethod.toUpperCase() === method.toUpperCase()
+                      ? 'bg-background text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-primary hover:bg-hover'
+                    }
+                  `}
+                >
+                  {method.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {actions?.map((action, index) => {
             const isCopied = copiedIndex === index
