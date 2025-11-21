@@ -208,14 +208,24 @@
     },
     "/Interact/vote": {
       "post": {
+        "summary": "Submit a vote for a YouTube video",
+        "description": "Submits a like or dislike vote for a specified YouTube video. This endpoint is used to record user votes in the Return YouTube Dislike system. Requires a VoteModel containing the user ID, video ID, vote value (typically 1 for like, -1 for dislike), and optionally a puzzle solution for verification.",
         "tags": [
           "Interact"
         ],
         "requestBody": {
+          "required": true,
+          "description": "Vote data including user ID, video ID, vote value, and optional puzzle solution",
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/VoteModel"
+              },
+              "example": {
+                "userId": "user123",
+                "videoId": "kxOuG8jMIgI",
+                "value": 1,
+                "solution": null
               }
             },
             "text/json": {
@@ -232,21 +242,37 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Vote successfully submitted"
+          },
+          "400": {
+            "description": "Bad Request - Invalid vote data or missing required fields"
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials"
           }
         }
       }
     },
     "/Interact/confirmVote": {
       "post": {
+        "summary": "Confirm a previously submitted vote",
+        "description": "Confirms a vote that was previously submitted via the /Interact/vote endpoint. This endpoint is typically used as part of a two-step voting process to verify and finalize votes, often requiring puzzle solution verification to prevent automated voting abuse.",
         "tags": [
           "Interact"
         ],
         "requestBody": {
+          "required": true,
+          "description": "Vote confirmation data including user ID, video ID, vote value, and puzzle solution",
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/VoteModel"
+              },
+              "example": {
+                "userId": "user123",
+                "videoId": "kxOuG8jMIgI",
+                "value": 1,
+                "solution": "base64encodedpuzzlesolution"
               }
             },
             "text/json": {
@@ -263,7 +289,13 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Vote successfully confirmed"
+          },
+          "400": {
+            "description": "Bad Request - Invalid confirmation data, missing puzzle solution, or vote not found"
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required or invalid credentials"
           }
         }
       }
@@ -479,6 +511,8 @@
     },
     "/Votes": {
       "get": {
+        "summary": "Get votes for a YouTube video",
+        "description": "Retrieves vote statistics (likes, dislikes, rating, view count) for a given YouTube video ID. This is the primary endpoint for fetching vote data from the Return YouTube Dislike API. Returns comprehensive vote information including the video ID, creation date, like/dislike counts, rating, view count, and deletion status.",
         "tags": [
           "Votes"
         ],
@@ -486,13 +520,22 @@
           {
             "name": "videoId",
             "in": "query",
+            "required": true,
+            "description": "The YouTube video ID to fetch votes for (e.g., kxOuG8jMIgI). Must be a valid YouTube video ID format.",
             "schema": {
               "type": "string"
+            },
+            "examples": {
+              "example": {
+                "value": "kxOuG8jMIgI",
+                "summary": "Example YouTube video ID"
+              }
             }
           },
           {
             "name": "likeCount",
             "in": "query",
+            "description": "Optional like count parameter",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -501,7 +544,60 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Successfully retrieved vote data. Returns an object containing the video ID, dateCreated (ISO 8601 format), likes count, dislikes count, rating (calculated value), viewCount, and deleted status (boolean).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "YouTube video ID"
+                    },
+                    "dateCreated": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Date when the video data was created (ISO 8601 format)"
+                    },
+                    "likes": {
+                      "type": "integer",
+                      "description": "Number of likes for the video"
+                    },
+                    "dislikes": {
+                      "type": "integer",
+                      "description": "Number of dislikes for the video"
+                    },
+                    "rating": {
+                      "type": "number",
+                      "description": "Calculated rating value"
+                    },
+                    "viewCount": {
+                      "type": "integer",
+                      "description": "Total view count for the video"
+                    },
+                    "deleted": {
+                      "type": "boolean",
+                      "description": "Whether the video has been deleted"
+                    }
+                  }
+                },
+                "example": {
+                  "id": "kxOuG8jMIgI",
+                  "dateCreated": "2021-12-20T12:25:54.418014Z",
+                  "likes": 27326,
+                  "dislikes": 498153,
+                  "rating": 1.212014408444885,
+                  "viewCount": 3149885,
+                  "deleted": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - The provided YouTube video ID is incorrectly formatted"
+          },
+          "404": {
+            "description": "Not Found - The provided YouTube video ID is invalid or does not exist"
           }
         }
       },

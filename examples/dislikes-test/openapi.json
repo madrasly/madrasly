@@ -1004,8 +1004,7 @@
     "sidebar": {
       "workspace": {
         "name": "Return YouTube Dislike",
-        "icon": "API",
-        "image": "https://returnyoutubedislike.com/logo.png"
+        "icon": "API"
       },
       "user": {
         "name": "User",

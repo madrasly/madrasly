@@ -85,6 +85,10 @@ export function ensureUIConfig(
         uiConfig.endpoints = generateEndpointConfigs(spec.paths || {});
     }
 
+    // Note: popularEndpoints can be optionally defined to control which endpoints
+    // are displayed on the landing page. If not specified, the first 4 endpoints will be shown.
+    // Example: popularEndpoints: ['get-votes', 'post-vote', 'get-registration']
+
     return spec;
 }
 

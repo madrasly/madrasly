@@ -12,6 +12,7 @@ export const GeneratorConfigSchema = z.object({
     workspaceImage: z.string().optional(),
     theme: z.enum(['light', 'dark', 'coffee']).default('light'),
     interactive: z.boolean().default(true),
+    popularEndpoints: z.array(z.string()).optional(),
 });
 
 export type GeneratorConfig = z.infer<typeof GeneratorConfigSchema>;
@@ -23,6 +24,8 @@ export interface UIConfig {
     sidebar: SidebarConfig;
     endpoints: Record<string, EndpointConfig>;
     auth: AuthConfig;
+    /** Array of endpoint keys to display as popular endpoints on the landing page */
+    popularEndpoints?: string[];
 }
 
 export interface SidebarConfig {

@@ -91,6 +91,15 @@ export async function generatePlayground(
             }
         }
 
+        // 5.5. Inject popularEndpoints from CLI if provided
+        if (config.popularEndpoints && config.popularEndpoints.length > 0) {
+            if (!spec['x-ui-config']) {
+                spec['x-ui-config'] = { sidebar: { workspace: { name: '', icon: '' } }, endpoints: {}, auth: { mode: 'manual' } };
+            }
+            spec['x-ui-config'].popularEndpoints = config.popularEndpoints;
+            console.log(`  ✓ Popular endpoints set: ${config.popularEndpoints.join(', ')}`);
+        }
+
         // 6. Create temp directory structure
         const tempOutputDir = `${config.outputDir}.tmp`;
         console.log(`Creating project structure in ${tempOutputDir}...`);
@@ -151,7 +160,7 @@ export async function generatePlayground(
         await mkdir(join(tempOutputDir, 'app', 'api', 'openapi-spec'), { recursive: true });
         await writeFile(join(tempOutputDir, 'app', 'api', 'openapi-spec', 'route.ts'), renderOpenAPISpecRoute());
         console.log('  ✓ app/api/openapi-spec/route.ts');
-        
+
         await writeFile(join(tempOutputDir, 'lib', 'use-openapi-spec.ts'), renderUseOpenAPISpecHook());
         console.log('  ✓ lib/use-openapi-spec.ts');
 

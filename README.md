@@ -60,6 +60,8 @@ madrasly <spec-path> <output-path> [options]
 - `--theme THEME`: Set default theme (`light`, `dark`, or `coffee`)
 - `--workspace-image URL|FILE`: Workspace logo/image
 - `--no-interactive`: Skip interactive prompts
+- `--popular-endpoints ENDPOINTS`: Comma-separated list of endpoints to display prominently
+
 
 ## Features
 
@@ -80,7 +82,7 @@ If you have existing workflows, simply replace:
 python generate.py spec.json output
 
 # New (TypeScript) 
-npx madrasly spec.json output
+npx madrasly spec.json output --popular-endpoints "get-votes,post-votes,post-interact-vote,get-puzzle-registration"
 ```
 
 All features are maintained with improved performance.

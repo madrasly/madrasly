@@ -16,6 +16,7 @@ program
     .option('--api-key <key>', 'API key for automatic authentication')
     .option('--workspace-image <url>', 'Workspace image URL or file path')
     .option('--theme <theme>', 'Default theme: light, dark, or coffee', 'light')
+    .option('--popular-endpoints <endpoints>', 'Comma-separated list of endpoint keys to display on landing page')
     .option('--no-interactive', 'Skip interactive prompts')
     .action(async (spec: string, output: string, options: any) => {
         try {
@@ -28,6 +29,7 @@ program
                 workspaceImage: options.workspaceImage,
                 theme: options.theme || 'light',
                 interactive: options.interactive !== false,
+                popularEndpoints: options.popularEndpoints ? options.popularEndpoints.split(',').map((s: string) => s.trim()) : undefined,
             });
 
             // Generate playground

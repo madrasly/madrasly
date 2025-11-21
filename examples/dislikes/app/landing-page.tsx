@@ -15,7 +15,7 @@ interface PopularEndpoint {
   key: string
   title: string
   description: string
-  method: string
+  method: string | string[] // Support single method or array of methods for merged endpoints
   path: string
   exampleContent?: any
   responseExample?: any
@@ -79,12 +79,87 @@ function extractExampleContent(operation: any, spec: any): { exampleContent?: an
   return { exampleContent, responseExample }
 }
 
-// Helper to generate visual preview from example data
-function generateVisualPreview(endpoint: PopularEndpoint, operation: any, spec: any): React.ReactNode {
-  const { exampleContent, responseExample } = extractExampleContent(operation, spec)
-  const data = responseExample || exampleContent
+// Helper to extract schema information for preview
+function extractSchemaInfo(operation: any, spec: any): Array<{ name: string; description: string; type?: string }> {
+  const items: Array<{ name: string; description: string; type?: string }> = []
 
-  if (!data) {
+  // First, try to get response schema (what the endpoint returns)
+  const successResponse = operation.responses?.['200'] || operation.responses?.['201'] || operation.responses?.['204']
+  const responseContent = successResponse?.content?.['application/json']
+
+  if (responseContent?.schema) {
+    let schema = responseContent.schema
+
+    // Handle $ref
+    if (schema.$ref) {
+      const refPath = schema.$ref.replace('#/components/schemas/', '')
+      schema = spec.components?.schemas?.[refPath]
+    }
+
+    // Extract properties from response schema
+    if (schema?.properties) {
+      const props = schema.properties
+      const propKeys = Object.keys(props).slice(0, 4) // Show up to 4 properties
+
+      for (const key of propKeys) {
+        const prop = props[key]
+        items.push({
+          name: key,
+          description: prop.description || `${key} value`,
+          type: prop.type
+        })
+      }
+    }
+  }
+
+  // If no response schema, fall back to parameters (what the endpoint accepts)
+  if (items.length === 0 && operation.parameters) {
+    const params = operation.parameters.slice(0, 4)
+    for (const param of params) {
+      items.push({
+        name: param.name,
+        description: param.description || `${param.name} parameter`,
+        type: param.schema?.type
+      })
+    }
+  }
+
+  // If still no items, try request body schema
+  if (items.length === 0) {
+    const requestBodyContent = operation.requestBody?.content?.['application/json']
+    if (requestBodyContent?.schema) {
+      let schema = requestBodyContent.schema
+
+      // Handle $ref
+      if (schema.$ref) {
+        const refPath = schema.$ref.replace('#/components/schemas/', '')
+        schema = spec.components?.schemas?.[refPath]
+      }
+
+      if (schema?.properties) {
+        const props = schema.properties
+        const propKeys = Object.keys(props).slice(0, 4)
+
+        for (const key of propKeys) {
+          const prop = props[key]
+          items.push({
+            name: key,
+            description: prop.description || `${key} field`,
+            type: prop.type
+          })
+        }
+      }
+    }
+  }
+
+  return items
+}
+
+// Helper to generate visual preview from schema information
+function generateVisualPreview(endpoint: PopularEndpoint, operation: any, spec: any): React.ReactNode {
+  const schemaItems = extractSchemaInfo(operation, spec)
+
+  if (schemaItems.length === 0) {
     return (
       <div className="space-y-1.5">
         <div className="h-1.5 bg-default rounded w-3/4"></div>
@@ -93,72 +168,20 @@ function generateVisualPreview(endpoint: PopularEndpoint, operation: any, spec: 
     )
   }
 
-  if (Array.isArray(data)) {
-    return (
-      <div className="space-y-1.5">
-        {data.slice(0, 3).map((item: any, idx: number) => {
-          if (typeof item === 'string') {
-            return (
-              <div key={idx} className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-primary' : 'bg-primary/70'}`}></div>
-                <span className="text-xs text-secondary truncate">{item}</span>
-              </div>
-            )
-          } else if (typeof item === 'object') {
-            const firstKey = Object.keys(item)[0]
-            return (
-              <div key={idx} className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-primary' : 'bg-primary/70'}`}></div>
-                <span className="text-xs text-secondary truncate">
-                  {firstKey}: {String(item[firstKey]).substring(0, 25)}
-                </span>
-              </div>
-            )
-          }
-          return null
-        })}
-      </div>
-    )
-  } else if (typeof data === 'object' && data !== null) {
-    const keys = Object.keys(data)
-    if (keys.length > 0) {
-      return (
-        <div className="space-y-1.5">
-          {keys.slice(0, 4).map((key, idx) => {
-            const value = data[key]
-            if (Array.isArray(value)) {
-              return (
-                <div key={key} className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-primary' : 'bg-primary/70'}`}></div>
-                  <span className="text-xs text-secondary">{key}: [{value.length} items]</span>
-                </div>
-              )
-            } else if (typeof value === 'string') {
-              return (
-                <div key={key} className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-primary' : 'bg-primary/70'}`}></div>
-                  <span className="text-xs text-secondary truncate">{value.substring(0, 35)}</span>
-                </div>
-              )
-            } else {
-              return (
-                <div key={key} className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-primary' : 'bg-primary/70'}`}></div>
-                  <span className="text-xs text-secondary">{key}</span>
-                </div>
-              )
-            }
-          })}
+  return (
+    <div className="space-y-1.5">
+      {schemaItems.map((item, idx) => (
+        <div key={item.name} className="flex items-start gap-2">
+          <div className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-primary' : 'bg-primary/70'}`}></div>
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-medium text-primary">{item.name}</span>
+            {item.type && <span className="text-xs text-tertiary ml-1">({item.type})</span>}
+            <p className="text-xs text-secondary truncate">{item.description}</p>
+          </div>
         </div>
-      )
-    }
-  } else if (typeof data === 'string') {
-    return (
-      <div className="text-xs text-secondary line-clamp-2">{data}</div>
-    )
-  }
-
-  return null
+      ))}
+    </div>
+  )
 }
 
 export default function LandingPage() {
@@ -211,21 +234,61 @@ export default function LandingPage() {
     if (popularKeys.length > 0) {
       const endpointsRecord = endpoints as Record<string, any>
       const paths = openApiSpec.paths as Record<string, Record<string, any>> | undefined
-      endpointsToShow = popularKeys
-        .map((key: string) => {
-          const endpoint = endpointsRecord[key]
-          if (!endpoint) return null
-          const operation = paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]
-          const { exampleContent, responseExample } = extractExampleContent(operation, openApiSpec)
 
-          return {
-            key,
-            title: endpoint.title,
-            description: endpoint.description || operation?.summary || '',
-            method: endpoint.method,
-            path: endpoint.path,
-            exampleContent,
-            responseExample
+      // Process each popular key
+      const processedPaths = new Set<string>() // Track which paths we've already processed
+
+      endpointsToShow = popularKeys
+        .map((popularKey: string) => {
+          // Check if this is a full endpoint key (contains --) or a path-based key
+          const isFullKey = popularKey.includes('--')
+
+          if (isFullKey) {
+            // Full endpoint key - use existing behavior
+            const endpoint = endpointsRecord[popularKey]
+            if (!endpoint) return null
+            const operation = paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]
+            const { exampleContent, responseExample } = extractExampleContent(operation, openApiSpec)
+
+            return {
+              key: popularKey,
+              title: endpoint.title,
+              description: endpoint.description || operation?.summary || '',
+              method: endpoint.method,
+              path: endpoint.path,
+              exampleContent,
+              responseExample
+            }
+          } else {
+            // Path-based key - find all endpoints matching this path
+            const matchingEndpoints = Object.entries(endpointsRecord)
+              .filter(([key, _]) => key.endsWith(`--${popularKey}`))
+              .map(([key, endpoint]) => ({ key, ...endpoint }))
+
+            if (matchingEndpoints.length === 0) return null
+
+            // Skip if we've already processed this path
+            const firstEndpoint = matchingEndpoints[0]
+            if (processedPaths.has(firstEndpoint.path)) return null
+            processedPaths.add(firstEndpoint.path)
+
+            // Get all methods for this path
+            const methods = matchingEndpoints.map(e => e.method)
+
+            // Use the first endpoint's operation for examples
+            const operation = paths?.[firstEndpoint.path]?.[firstEndpoint.method.toLowerCase()]
+            const { exampleContent, responseExample } = extractExampleContent(operation, openApiSpec)
+
+            // Create a merged endpoint with all methods
+            return {
+              key: matchingEndpoints[0].key, // Use first endpoint key for navigation
+              title: firstEndpoint.path.split('/').pop() || firstEndpoint.title,
+              description: firstEndpoint.description || operation?.summary || '',
+              method: methods, // Array of methods
+              path: firstEndpoint.path,
+              exampleContent,
+              responseExample
+            }
           }
         })
         .filter(Boolean) as PopularEndpoint[]
@@ -409,7 +472,9 @@ export default function LandingPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {displayedEndpoints.map((endpoint) => {
                     const paths = openApiSpec.paths as Record<string, Record<string, any>> | undefined
-                    const operation = paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]
+                    // For merged endpoints with multiple methods, use the first method for operation lookup
+                    const firstMethod = Array.isArray(endpoint.method) ? endpoint.method[0] : endpoint.method
+                    const operation = paths?.[endpoint.path]?.[firstMethod.toLowerCase()]
                     const summary = operation?.summary || endpoint.title
                     const description = operation?.description || endpoint.description
 
@@ -420,10 +485,19 @@ export default function LandingPage() {
                         className="bg-card border border-default rounded-lg p-4 hover:border-primary hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 text-xs font-semibold bg-primary text-primary-foreground rounded">
-                              {endpoint.method}
-                            </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Render method badge(s) */}
+                            {Array.isArray(endpoint.method) ? (
+                              endpoint.method.map((method) => (
+                                <span key={method} className="px-2 py-0.5 text-xs font-semibold bg-primary text-primary-foreground rounded">
+                                  {method}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="px-2 py-0.5 text-xs font-semibold bg-primary text-primary-foreground rounded">
+                                {endpoint.method}
+                              </span>
+                            )}
                             <code className="text-xs font-mono text-secondary">
                               {endpoint.path}
                             </code>
