@@ -262,7 +262,7 @@ export default function LandingPage() {
           } else {
             // Path-based key - find all endpoints matching this path
             const matchingEndpoints = Object.entries(endpointsRecord)
-              .filter(([key, _]) => key.endsWith(`--${popularKey}`))
+              .filter(([key, endpoint]) => endpoint.path === popularKey)
               .map(([key, endpoint]) => ({ key, ...endpoint }))
 
             if (matchingEndpoints.length === 0) return null
