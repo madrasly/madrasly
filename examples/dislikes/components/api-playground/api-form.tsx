@@ -131,7 +131,8 @@ export function ApiForm({ urlField, formFields, onSubmit, onFormChange, isLoadin
   const [apiKey, setApiKey] = useState<string>('')
 
   // Show auth field only in manual mode
-  const showAuthField = authConfig?.mode === 'manual' && securityScheme
+  // Show auth field only in manual mode, and only if security is NOT in path (path params are already in the form)
+  const showAuthField = authConfig?.mode === 'manual' && securityScheme && securityScheme.in !== 'path'
 
   // Helper to find a field config by name (supports nested paths with dot notation)
   // Defined as regular function to support recursion
