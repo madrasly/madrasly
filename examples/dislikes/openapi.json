@@ -9,6 +9,9 @@
       "url": "https://returnyoutubedislikeapi.com"
     }
   ],
+  "externalDocs": {
+    "url": "https://returnyoutubedislike.com/docs"
+  },
   "tags": [
     {
       "name": "Auth",
@@ -1014,43 +1017,43 @@
     },
     "endpoints": {
       "get--api-auth-oauth-login": {
-        "title": "get__api_Auth_oauth_login",
+        "title": "Api Auth Oauth Login",
         "description": "",
         "method": "GET",
         "path": "/api/Auth/oauth/login"
       },
       "post--api-auth-oauth-exchange": {
-        "title": "post__api_Auth_oauth_exchange",
+        "title": "Api Auth Oauth Exchange",
         "description": "",
         "method": "POST",
         "path": "/api/Auth/oauth/exchange"
       },
       "post--api-auth-patreon-refresh": {
-        "title": "post__api_Auth_patreon_refresh",
+        "title": "Api Auth Patreon Refresh",
         "description": "",
         "method": "POST",
         "path": "/api/Auth/patreon/refresh"
       },
       "post--api-auth-verify": {
-        "title": "post__api_Auth_verify",
+        "title": "Api Auth Verify",
         "description": "",
         "method": "POST",
         "path": "/api/Auth/verify"
       },
       "get--configs-selectors": {
-        "title": "get__Configs_selectors",
+        "title": "Configs Selectors",
         "description": "",
         "method": "GET",
         "path": "/Configs/selectors"
       },
       "get--api-collect": {
-        "title": "get__api_collect",
+        "title": "Api Collect",
         "description": "",
         "method": "GET",
         "path": "/api/collect"
       },
       "get--api-diagnostics": {
-        "title": "get__api_diagnostics",
+        "title": "Api Diagnostics",
         "description": "",
         "method": "GET",
         "path": "/api/diagnostics"
@@ -1068,7 +1071,7 @@
         "path": "/Interact/confirmVote"
       },
       "get--api-patreon-analytics-video-videoid": {
-        "title": "get__api_patreon_analytics_video_videoId",
+        "title": "Api Patreon Analytics Video {videoId}",
         "description": "",
         "method": "GET",
         "path": "/api/patreon/analytics/video/{videoId}",
@@ -1077,37 +1080,37 @@
         }
       },
       "get--puzzle-registration": {
-        "title": "get__Puzzle_registration",
+        "title": "Puzzle Registration",
         "description": "",
         "method": "GET",
         "path": "/Puzzle/registration"
       },
       "post--puzzle-registration": {
-        "title": "post__Puzzle_registration",
+        "title": "Puzzle Registration",
         "description": "",
         "method": "POST",
         "path": "/Puzzle/registration"
       },
       "get--test": {
-        "title": "get__test",
+        "title": "Test",
         "description": "",
         "method": "GET",
         "path": "/test"
       },
       "get--test2": {
-        "title": "get__test2",
+        "title": "Test2",
         "description": "",
         "method": "GET",
         "path": "/test2"
       },
       "get--origins": {
-        "title": "get__origins",
+        "title": "Origins",
         "description": "",
         "method": "GET",
         "path": "/origins"
       },
       "get--resetcache": {
-        "title": "get__resetCache",
+        "title": "ResetCache",
         "description": "",
         "method": "GET",
         "path": "/resetCache"
@@ -1119,7 +1122,7 @@
         "path": "/Votes"
       },
       "post--votes": {
-        "title": "post__Votes",
+        "title": "Votes",
         "description": "",
         "method": "POST",
         "path": "/Votes"
@@ -1127,10 +1130,6 @@
     },
     "auth": {
       "mode": "manual"
-    },
-    "popularEndpoints": [
-      "votes",
-      "interact-vote"
-    ]
+    }
   }
 }
