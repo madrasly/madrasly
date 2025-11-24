@@ -382,7 +382,7 @@ export function parseOpenAPIToConfig(spec: OpenAPISpec, endpointKey: string): Ap
 
   // Parameters
   for (const param of operation.parameters || []) {
-    if (param.in === 'path' || (param.name === urlFieldParamName && uiConfig.urlField)) continue
+    if (param.name === urlFieldParamName && uiConfig.urlField) continue
 
     const paramSchema: any = param.schema || {}
 

@@ -71,6 +71,59 @@ export function parseSidebarConfig(
   )
 
   if (!hasApiPlaygroundSection && config.endpoints && Object.keys(config.endpoints).length > 0) {
+    // Helper to format path into a readable title
+    const formatPathToTitle = (path: string) => {
+      return path
+        .replace(/^\//, '') // Remove leading slash
+        .replace(/[\/_]/g, ' ') // Replace slashes and underscores with spaces
+        .replace(/-/g, ' ') // Replace dashes with spaces
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize words
+        .join(' ')
+    }
+
+    // Helper to process endpoints: group by path and select representative
+    const processEndpoints = (endpoints: Array<{ endpointKey: string; endpoint: any }>) => {
+      const methodPriority = ['get', 'post', 'put', 'patch', 'delete']
+
+      // Group by path
+      const byPath = new Map<string, Array<{ endpointKey: string; endpoint: any }>>()
+      endpoints.forEach(item => {
+        const path = item.endpoint.path
+        if (!byPath.has(path)) {
+          byPath.set(path, [])
+        }
+        byPath.get(path)!.push(item)
+      })
+
+      // Create items from groups
+      const navItems: SidebarNavItem['items'] = []
+
+      byPath.forEach((groupEndpoints) => {
+        // Sort within group to find representative (GET preferred)
+        groupEndpoints.sort((a, b) => {
+          const indexA = methodPriority.indexOf(a.endpoint.method.toLowerCase())
+          const indexB = methodPriority.indexOf(b.endpoint.method.toLowerCase())
+          const pA = indexA === -1 ? 999 : indexA
+          const pB = indexB === -1 ? 999 : indexB
+          return pA - pB
+        })
+
+        const representative = groupEndpoints[0]
+
+        navItems.push({
+          label: representative.endpoint.title || formatPathToTitle(representative.endpoint.path),
+          icon: undefined,
+          active: false,
+          endpointKey: representative.endpointKey,
+          onClick: onEndpointClick ? () => onEndpointClick(representative.endpointKey) : undefined,
+        })
+      })
+
+      // Sort final items by label/path
+      return navItems.sort((a, b) => a.label.localeCompare(b.label))
+    }
+
     // Group endpoints by tags if OpenAPI spec is provided
     if (openApiSpec?.paths && openApiSpec?.tags) {
       // Create a map of tag name to endpoints
@@ -92,40 +145,6 @@ export function parseSidebarConfig(
 
       // Get tag order from OpenAPI spec tags array
       const tagOrder = openApiSpec.tags.map(tag => tag.name)
-
-      // Helper to group endpoints by path and pick the best one (GET > POST > etc)
-      const processEndpoints = (endpoints: Array<{ endpointKey: string; endpoint: any }>) => {
-        const pathGroups = new Map<string, Array<{ endpointKey: string; endpoint: any }>>()
-
-        endpoints.forEach(item => {
-          const path = item.endpoint.path
-          if (!pathGroups.has(path)) pathGroups.set(path, [])
-          pathGroups.get(path)!.push(item)
-        })
-
-        const methodPriority = ['get', 'post', 'put', 'patch', 'delete']
-
-        return Array.from(pathGroups.entries()).map(([path, items]) => {
-          // Sort by method priority
-          items.sort((a, b) => {
-            const indexA = methodPriority.indexOf(a.endpoint.method.toLowerCase())
-            const indexB = methodPriority.indexOf(b.endpoint.method.toLowerCase())
-            const pA = indexA === -1 ? 999 : indexA
-            const pB = indexB === -1 ? 999 : indexB
-            return pA - pB
-          })
-
-          const bestItem = items[0]
-
-          return {
-            label: path,
-            icon: undefined,
-            active: false,
-            endpointKey: bestItem.endpointKey,
-            onClick: onEndpointClick ? () => onEndpointClick(bestItem.endpointKey) : undefined,
-          }
-        })
-      }
 
       // Create sections for each tag
       tagOrder.forEach(tagName => {
@@ -149,44 +168,14 @@ export function parseSidebarConfig(
       })
     } else {
       // Fallback: if no OpenAPI spec, just group everything under "API Playground"
-      // But still group by path
       const endpoints = Object.entries(config.endpoints).map(([endpointKey, endpoint]) => ({
         endpointKey,
         endpoint
       }))
 
-      const pathGroups = new Map<string, Array<{ endpointKey: string; endpoint: any }>>()
-      endpoints.forEach(item => {
-        const path = item.endpoint.path
-        if (!pathGroups.has(path)) pathGroups.set(path, [])
-        pathGroups.get(path)!.push(item)
-      })
-
-      const methodPriority = ['get', 'post', 'put', 'patch', 'delete']
-
-      const endpointItems = Array.from(pathGroups.entries()).map(([path, items]) => {
-        items.sort((a, b) => {
-          const indexA = methodPriority.indexOf(a.endpoint.method.toLowerCase())
-          const indexB = methodPriority.indexOf(b.endpoint.method.toLowerCase())
-          const pA = indexA === -1 ? 999 : indexA
-          const pB = indexB === -1 ? 999 : indexB
-          return pA - pB
-        })
-
-        const bestItem = items[0]
-
-        return {
-          label: path,
-          icon: undefined,
-          active: false,
-          endpointKey: bestItem.endpointKey,
-          onClick: onEndpointClick ? () => onEndpointClick(bestItem.endpointKey) : undefined,
-        }
-      })
-
       navItems.unshift({
         title: 'API Playground',
-        items: endpointItems,
+        items: processEndpoints(endpoints),
       })
     }
   }

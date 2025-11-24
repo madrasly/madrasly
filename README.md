@@ -14,7 +14,7 @@ Generate beautiful, interactive API playgrounds from OpenAPI specifications.
 </table>
 
 ## DEMO
-https://coingecko-y.vercel.app/
+[DEMO](https://madrasly-hero-demo.vercel.app/)
 
 ## Quick Start
 

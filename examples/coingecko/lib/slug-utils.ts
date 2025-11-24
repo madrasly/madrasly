@@ -19,7 +19,7 @@ export function generateSlugFromEndpoint(
   if (!path.startsWith('/')) path = '/' + path
   if (path.endsWith('/') && path.length > 1) path = path.slice(0, -1)
 
-  return path
+  return `${path}?method=${uiConfig.method}`
 }
 
 /**
@@ -34,8 +34,8 @@ export function findEndpointBySlug(
     return null
   }
 
-  // Reconstruct path from slug segments
-  const path = '/' + slug.join('/')
+  // Reconstruct path from slug segments (URL-decode each segment)
+  const path = '/' + slug.map(segment => decodeURIComponent(segment)).join('/')
 
   // Find endpoint with this path
   const endpoints = spec['x-ui-config']?.endpoints || {}

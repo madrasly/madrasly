@@ -229,15 +229,13 @@ export default function SlugPage() {
     if (!openApiSpec) return undefined
     const securitySchemes = openApiSpec.components?.securitySchemes as Record<string, any> | undefined
 
-    // First try to get scheme from config
-    if (authConfig.schemeName && securitySchemes) {
-      const scheme = securitySchemes[authConfig.schemeName]
-      if (scheme) return scheme
-    }
-
-    // Fall back to checking operation security or global security
-    if (operation?.security && operation.security.length > 0) {
-      // Get first security scheme from operation
+    // 1. Check if operation explicitly defines security (Highest priority)
+    if (operation?.security !== undefined) {
+      // If security is explicitly set to empty array, no auth required
+      if (operation.security.length === 0) {
+        return undefined
+      }
+      // Otherwise, use the first security scheme from operation
       const firstSecurity = operation.security[0]
       const schemeName = Object.keys(firstSecurity)[0]
       if (schemeName && securitySchemes) {
@@ -245,7 +243,13 @@ export default function SlugPage() {
       }
     }
 
-    // Check global security
+    // 2. Try to get scheme from global UI config
+    if (authConfig.schemeName && securitySchemes) {
+      const scheme = securitySchemes[authConfig.schemeName]
+      if (scheme) return scheme
+    }
+
+    // 3. Check global security in spec
     if (openApiSpec.security && openApiSpec.security.length > 0) {
       const firstSecurity = openApiSpec.security[0]
       const schemeName = Object.keys(firstSecurity)[0]
@@ -254,12 +258,7 @@ export default function SlugPage() {
       }
     }
 
-    // If security schemes exist, use the first one
-    if (securitySchemes && Object.keys(securitySchemes).length > 0) {
-      const firstSchemeName = Object.keys(securitySchemes)[0]
-      return securitySchemes[firstSchemeName]
-    }
-
+    // 4. No security defined -> return undefined
     return undefined
   }, [authConfig.schemeName, operation, openApiSpec])
 
@@ -874,7 +873,7 @@ export default function SlugPage() {
             left={({ onRunClick }) => (
               <div className="p-8 max-w-[896px] w-full mx-auto min-w-0">
                 <ApiPageHeader
-                  title={endpointConfig.path}
+                  title={endpointConfig.title}
                   description={endpointConfig.description}
                   methodSelector={{
                     methods: availableMethods,
